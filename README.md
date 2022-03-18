@@ -1,4 +1,5 @@
-# matcha
+# rexplain
 
 ## Installation
-`pip install matcha_ai`
+`pip install rexplain`
+`import rexplain as rx`
