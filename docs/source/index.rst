@@ -3,7 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-
+recsplain
+==============
 recsplain is a tabular similarity search server
 
 Use it to recommend items to users based on their preferences. 
@@ -47,20 +48,22 @@ the recsplain system creates a vector representation of that user based on their
 
 The recsplain system compares the characteristics of the user vector to the characteristics of the items to calculate the distance.
 
-Install it into your project to have your very own recommendation engine. 
+The recsplain system is easy to install and to customize to suit your needs.
 
-You can:
+You can use it to create your very own recommendation engine.
 
-- customize the filters, encoders, and user encoders for the similarity search server.
-- index a list of items based on feature values
-- search by item to get the other items most similar to it 
-- save your custom similarity search models to disk
-- load your custom similarity search models from disk
+Configure the system to make recommendations based on your needs. You can use filters to categorically exclude data from the recommendations. You can use encoders to dictate how the system checks the similarity.
+
+After configuring, index a list of items based on their features values.
+
+After indexing, you can search by item to get other items most similar to it. 
+
+You also can search by user to get the items the user most likely prefers.
+
+You also can save your custom similarity search models to disk and load your custom similarity search models from disk.
 
 .. note:: 
    **ArgMaxML** created recsplain. We are focused on creating software the enables you to integrate recommendation engines into your product to increase customer engagement.
-
-Check out the :ref:`welcome` for further information.
 
 
 .. toctree::
