@@ -8,7 +8,12 @@ recsplain is a tabular similarity search server
 
 Use it to recommend items to users based on their preferences. 
 
-Your recommendations are more likely to be successful if based on user preference.
+Recommendations are more likely to be successful if based on user preference.
+
+This benefits both the person making the recommendation and the user. 
+
+The recommender is more likely to increase conversions by making more valuable recommendations to users, and users
+more easily find the items they prefer.
 
 A teacher could use the recsplain system to recommend healthy snacks to students based on each student's tastes to make 
 it more likely that the student actually eats healthy.
@@ -18,21 +23,29 @@ make it more likely that the recruiter makes a successful match.
 
 The applications are virtually endless.
 
-The recsplain system accurately predicts user preferences based on a user's previous relationship with the items.
+The recsplain system predicts user preferences based on a user's profile and previous relationship with relevant items 
+where the features of the items are taken into consideration.
 
-For instance, taking the food example, the recsplain system can take a student's snack order history of ordering sweet fruits
-and see that the student is more likely to eat healthy if presented with sweet fruits instead of other foods. 
+For instance, taking the food example, the recsplain system can take a student's profile of nut allergies and snack order history of ordering 
+sweet fruits and see that the student is more likely to eat healthy if presented with sweet fruits instead of other foods and that the student
+should be recommended foods with nuts. 
 
-To understand a user's previous relationship with the item, the recsplain system creates a vector for each user based on the 
-user's history with the items.
+To understand a user's profile previous relationship with the item, the recsplain system creates a vector for each user based on the 
+user's profile and history with the items.
 
-Taking the snacks example, if a student previously ordered a banana three times, an apple one time, and never ordered carrots, 
-the recsplain system creates a vector representation of that user based on that history. 
+Each user vector is a numerical vector where the vector positions and values in an n-dimensional space convey the user's profile and relationship history with the items. 
+
+The vector is used to compare the user to items by looking for the distance between the user vector and item.
+
+The closer the distance, the more likely the user will prefer the item.
+
+Taking the snacks example, if a student has a profile of nut allergies and previously ordered a banana three times, an apple one time, and never ordered carrots, 
+the recsplain system creates a vector representation of that user based on their allergies and order history. 
 
 .. note::
-   One way to think about it is that the user vector is three bananas and one apple. 
+   One way to think about it is that the user vector is a nut allergy, three bananas, and one apple. 
 
-Using the 
+The recsplain system compares the characteristics of the user vector to the characteristics of the items to calculate the distance.
 
 Install it into your project to have your very own recommendation engine. 
 
