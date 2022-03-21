@@ -2,7 +2,7 @@
 
 # -- Project information
 
-project = 'TRecSys'
+project = 'recsplain'
 copyright = '2021, ArgMaxML'
 author = 'ArgMaxML'
 
