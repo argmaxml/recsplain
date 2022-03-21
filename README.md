@@ -1,5 +1,5 @@
-# rexplain
+# recsplain
 
 ## Installation
-`pip install rexplain`
-`import rexplain as rx`
+`pip install recsplain`
+`import recssplain as rx`
