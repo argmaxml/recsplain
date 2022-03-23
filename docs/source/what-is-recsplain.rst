@@ -1,0 +1,48 @@
+What is recsplain
+=====================
+
+The recsplain system is a tabular similarity search server. It predicts item similarity and user preferences. 
+
+The system checks for similarity using filters and encoders.
+
+Recommendations that increase conversions
+-------------------------------------------
+Use the system to compare and recommend items.
+
+- search by item to find similar items in your database based on item features.
+- recommend items to users based on how items compare to a user's purchase history.
+
+One common application of recsplain is in online stores. The recsplain system helps online stores recommend products to customers based on items the customer already bought from the store.  
+
+.. note::
+   The recommendation system is not limited to just online stores. The applications are virtually endless. 
+
+Create your own
+-------------------------------------------
+Use recsplain to create your very own recommendation engine.
+
+It is easy to install and to customize to suit your needs.
+
+Configure the system to make recommendations based on your needs by using: 
+
+- filters to categorically exclude data from the recommendations
+- encoders to dictate how the system checks whether items are similar
+
+After you configure the system, you can easily index a list of items from your database so that you can start making recommendations.
+
+Make recommendations
+-------------------------------------------
+Start making recommendations.
+
+Make recommendations by item or by user. Use the recsplain system for:
+
+- searching by item to get other items most similar to it 
+- searching by user to get items the user most likely prefers based on the user's order history
+
+Use explanations
+-------------------------------------------
+The recsplain system explains it recommendations so that you can better understand its recommendations.
+
+Get started
+-------------------------------------------
+Go here to :doc:`get-started`!
