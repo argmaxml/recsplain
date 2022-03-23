@@ -8,9 +8,9 @@ recsplain
 
 Good recommendations are critical for increasing conversions. 
 
-The recsplain system helps you make better recommendations by using AI to recommend items based on feature similarity between the items.
+The recsplain system helps you increase conversions by using AI to recommend items based on feature similarity between the items.
 
-You can find items that are similar to a specific item and recommend items to users based on their purchase history of the items.
+The system finds items that are similar to a specific item and recommends items to users based on their purchase history of the items.
 
 One common application of recsplain is in online stores. The recsplain system helps online stores recommend products to customers based on items the customer already bought from the store.
 
