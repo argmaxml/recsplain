@@ -1,9 +1,9 @@
-Welcome
+Introduction
 ====================================
 
 
 TRecSys Documentation
-====================================
+----------------------------
 TRecSys is a tabular similarity search server. Install it into your project to have your very own recommendation engine. 
 
 You can:
@@ -16,7 +16,7 @@ You can:
 
 
 Filters
-=============
+--------------------
 
 HARD FILTERS. USUALLY BY GEO OR LANGUAGE
 
@@ -26,7 +26,7 @@ How to use them
 Examples
 
 Encoders
-=============
+------------------
 
 What they are
 Why use them
@@ -34,7 +34,7 @@ How to use them
 Examples
 
 User Encoders
-================
+------------------
 
 What they are
 Why use them
@@ -42,7 +42,7 @@ How to use them
 Examples
 
 Index Values
-================
+------------------
 
 each item should be a dict mapping an item feature to its value.
 
@@ -52,7 +52,7 @@ How to do it
 Examples
 
 Query
-================
+----------------
 
 Gets a single item and returns its k nearest neighbors.
 What does it mean to save to disk
@@ -62,7 +62,7 @@ How to do it
 
 
 Save Model
-================
+----------------
 
 Save your custom similarity search models to disk.
 What does it mean to save to disk
@@ -71,7 +71,7 @@ Why do it
 How to do it
 
 Load Model
-================
+-----------------
 
 Load your custom similarity search models from disk.
 
