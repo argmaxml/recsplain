@@ -3,7 +3,7 @@ Get Started
 
 
 .. toctree::
-   :maxdepth: 
+   :maxdepth: 2
 
    Install <installation>
    Confige <configuration>

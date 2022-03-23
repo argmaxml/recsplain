@@ -6,18 +6,19 @@
 The recsplain system
 =====================
 
-The recsplain system helps you increase conversions by using AI to recommend items based on feature similarity between the items.
+The recsplain system is a recommendation engine that uses AI to compare and recommend items based on feature similarity between the items.
 
 Recommendations that increase conversions
 -----------------------------------------------
 
-Use the system to search by item to find similar items in your database based on item features and to recommend items to users based on their purchase history.
+Use the system to compare and recommend items.
 
-One common application of recsplain is in online stores. The recsplain system helps online stores recommend products to customers based on items the customer already bought from the store.
+Use the system to search by item to find similar items in your database based on item features.
 
-The recommendation system, however, is not limited to just online stores. For instance, the recsplain system also helps recruiters match job openings to job applicants.
+Use the system to recommend items to users based on how items compare to a user's purchase history.
 
-The applications are virtually endless.
+.. note::
+   One common application of recsplain is in online stores. The recsplain system helps online stores recommend products to customers based on items the customer already bought from the store.  The recommendation system, however, is not limited to just online stores. The applications are virtually endless. 
 
 Create your own
 ------------------
@@ -58,8 +59,7 @@ Read here to learn more about :doc:`how-it-works` or just :doc:`get-started`!
 
 
 .. toctree::
-   :maxdepth: 1
-   :titlesonly:
+   :maxdepth: 0
 
    Introduction <introduction>
    How it works <how-it-works>
