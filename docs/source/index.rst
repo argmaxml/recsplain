@@ -8,8 +8,7 @@ The recsplain system
 
 The recsplain system is a recommendation engine that uses AI to compare and recommend items based on feature similarity between the items.
 
-Recommendations that increase conversions
-*******************************************
+**Recommendations that increase conversions**
 
 Use the system to compare and recommend items.
 
@@ -22,8 +21,7 @@ One common application of recsplain is in online stores. The recsplain system he
 .. note::
    The recommendation system is not limited to just online stores. The applications are virtually endless. 
 
-Create your own
-------------------
+**Create your own**
 
 Use recsplain to create your very own recommendation engine.
 
@@ -36,8 +34,7 @@ Configure the system to make recommendations based on your needs by using:
 
 After you configure the system, you can easily index a list of items from your database so that you can start making recommendations.
 
-Make recommendations
-*******************************************
+**Make recommendations**
 
 Start making recommendations.
 
@@ -46,22 +43,20 @@ Make recommendations by item or by user. Use the recsplain system for:
 - searching by item to get other items most similar to it 
 - searching by user to get items the user most likely prefers based on the user's order history
 
-Use explanations
-*******************************************
+**Use explanations**
 
 The recsplain system explains it recommendations so that you can better understand its recommendations.
 
-Get started
-*******************************************
+**Get started**
 
 Read here to learn more about :doc:`how-it-works` or just :doc:`get-started`!
 
 .. note:: 
    **ArgMaxML** created recsplain. We are focused on creating software the enables you to integrate recommendation engines into your product to increase customer engagement.
 
-
+----------------
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    Introduction <introduction>
    How it works <how-it-works>
