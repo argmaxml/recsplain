@@ -1,9 +1,12 @@
 How it works
 ================
 
-The recsplain system is a tabular similarity search server. Install it into your project to have your very own recommendation engine. 
+The recsplain system is a tabular similarity search server. It predicts item similarity and user preferences 
 
-The recsplain system predicts user preferences based on previous relationship with relevant items where the features of the items are taken into consideration.
+It predicts item similarity using encoders and recommends items for users based on the user's previous relationship with relevant items.
+
+Install it into your project to have your very own engine for searching for similar items and making good recommendations. 
+
 
 Install
 --------------
@@ -19,7 +22,7 @@ Use it as a web server or with Python bindings to call the methods directly from
 Configure
 --------------
 
-After you install the package, you configure the system and index your data.
+After installing the package, configure the system and index your data.
 
 Configure the system to tell it how to:
 
