@@ -8,8 +8,8 @@ The recsplain system
 
 The recsplain system helps you increase conversions by using AI to recommend items based on feature similarity between the items.
 
-A recommendation system to increase conversions
--------------------------------------------------
+Recommendations that increase conversions
+-----------------------------------------------
 
 Use the system to search by item to find similar items in your database based on item features and to recommend items to users based on their purchase history.
 
@@ -33,8 +33,8 @@ Configure the system to make recommendations based on your needs by using:
 
 After you configure the system, you can easily index a list of items from your database so that you can start making recommendations.
 
-Make recommendations by item or user
--------------------------------------
+Make recommendations
+-------------------------
 
 Start making recommendations.
 
@@ -43,8 +43,8 @@ Make recommendations by item or by user. Use the recsplain system for:
 - searching by item to get other items most similar to it 
 - searching by user to get items the user most likely prefers based on the user's order history
 
-Get explanations about the recommendations
---------------------------------------------
+Use explanations
+-----------------------
 
 The recsplain system explains it recommendations so that you can better understand its recommendations.
 
@@ -59,6 +59,7 @@ Read here to learn more about :doc:`how-it-works` or just :doc:`get-started`!
 
 .. toctree::
    :maxdepth: 1
+   :titlesonly:
 
    Introduction <introduction>
    How it works <how-it-works>
