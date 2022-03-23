@@ -5,6 +5,13 @@ The system filters items into separate partitions for comparison and uses encode
 
 The system can search a database by item to find items that are similar and can search a database by user to find items the user is likely to prefer.
 
+
+Indexing Items
+-------------------
+
+The recsplain system indexes items from your database.
+
+
 Comparing Items
 -------------------
 
@@ -38,59 +45,3 @@ The vector positions and values convey the user as a blend of the features of th
 The recsplain system compares the characteristics of the user vector to the characteristics of the items to calculate the distance between the user vector and item.
 
 The closer the distance, the more likely the user will prefer the item.
-
-Configuration
----------------
-
-Filters
-****************
-
-Encoders
-****************
--List of them
--Weight
-
-Metric
-****************
-
-Partitions
-****************
-
-
-Vector Size
-****************
-- Adds an extra for each
-
-Feature Sizes
-****************
-- Adds an extra for each
-
-Total Items
-****************
-
-Queries
-----------
-
-K
-****************
-
-Data
-****************
-
-Item History
-****************
-
-
-Explain
-****************
-
-
-Ids
-****************
-
-
-Distances
-****************
-
-
-

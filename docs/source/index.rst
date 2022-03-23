@@ -19,3 +19,4 @@ Read more about :doc:`what-is-recsplain`, :doc:`how-it-works`, or just :doc:`get
 
    What is recsplain <what-is-recsplain>
    How it works <how-it-works>
+   Quickstart <quickstart>

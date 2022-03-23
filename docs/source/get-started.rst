@@ -7,5 +7,6 @@ Get Started
 
    Install <installation>
    Confige <configuration>
+   Recommend <recommendations>
    FAQ <faq>
    Contribution Guidelines <contribution-guidelines>
