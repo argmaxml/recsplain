@@ -1,9 +1,11 @@
 Get Started
 =============
 
+
 .. toctree::
    :maxdepth: 2
 
-   Installation <installation>
+   Install <installation>
+   Confige <configuration>
    FAQ <faq>
    Contribution Guidelines <contribution-guidelines>
