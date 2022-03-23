@@ -17,11 +17,13 @@ Use the system to search by item to find similar items in your database based on
 
 Use the system to recommend items to users based on how items compare to a user's purchase history.
 
+One common application of recsplain is in online stores. The recsplain system helps online stores recommend products to customers based on items the customer already bought from the store.  
+
 .. note::
-   One common application of recsplain is in online stores. The recsplain system helps online stores recommend products to customers based on items the customer already bought from the store.  The recommendation system, however, is not limited to just online stores. The applications are virtually endless. 
+   The recommendation system is not limited to just online stores. The applications are virtually endless. 
 
 Create your own
-*******************************************
+------------------
 
 Use recsplain to create your very own recommendation engine.
 
