@@ -5,10 +5,10 @@ The recsplain system is a tabular similarity search server that calculates item 
 
 Recommendation system
 -------------------------------------------
-Use the system to compare and recommend items from your database to your users.
+Use the system to compare items from your database for similarity and to recommend items from your database to your users.
 
 - search by item to find similar items in your database based on item features
-- recommend items to users based on how items compare to a user's purchase history
+- recommend items to users based on the user's history with the items
 
 One common application of recsplain is in online stores where the system recommends products to customers based on items the customer already bought from the store.  
 
@@ -34,7 +34,7 @@ Start making recommendations by item or by user by either using the system as a 
 
 Search by item to get similar items ordered by most to least similar, their distances from the search item based on the item vectors, and explanations about the recommendations.
 
-Search by user to get items the user most likely prefers ordered from most to least likely based on the user's order history, each item's distance from the user based on the user's vector, and explanations about the recommendations.
+Search by user to get items the user most likely prefers ordered from most to least likely, each item's distance from the user based on the user's vector, and explanations about the recommendations.
 
 Use explanations
 -------------------------------------------
@@ -42,8 +42,11 @@ The recsplain system explains it recommendations so that you can better understa
 
 By setting the ``explian`` value to ``1`` when running an item or user query, the recsplain system returns explanations.
 
-The explanations are the distances for each field in the encoders that you set when configuring the system.
+.. note::
+   The explanations are the distances for each field in the encoders that you set when configuring the system.
+
+Therefore, not only do you get recommendations and overall distances, the recsplain provides more granular results to help you better understand the results.
 
 Get started
 -------------------------------------------
-Read about :doc:`how-it-works<how it works> or just :doc:`get-started<get started>`!
+Read about :doc:`how-it-works<how it works>` or just :doc:`get-started<get started>`!
