@@ -5,6 +5,10 @@ The system filters items into separate partitions for comparison and uses encode
 
 The system can search a database by item to find items that are similar and can search a database by user to find items the user is likely to prefer.
 
+Initiating system
+-------------------
+
+Initiate the recsplain system with your filters, encoders, and metric.
 
 Indexing Items
 -------------------

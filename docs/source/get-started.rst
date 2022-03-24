@@ -6,7 +6,7 @@ Get Started
    :maxdepth: 2
 
    Install <installation>
-   Confige <configuration>
+   Configure <configuration>
    Recommend <recommendations>
    FAQ <faq>
    Contribution Guidelines <contribution-guidelines>

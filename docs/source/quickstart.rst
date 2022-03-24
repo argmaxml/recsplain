@@ -28,14 +28,6 @@ Configure the system to tell it how to:
 
 To configure the system, input your preferences using ``init_schema``.
 
-Input ``filters``, ``encoders``, and ``metric``.
-
-``filters`` are hard filters and are used to separate or exclude items for comparison
-
-``encoders`` are soft filters and are used to control how the system compares items to determine similarity.
-
-``metric`` is . . .
-
 .. note::
     Read more about :doc:`configuring recsplain<configuration>`.
 
