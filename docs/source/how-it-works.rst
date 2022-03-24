@@ -7,7 +7,7 @@ After installing, start by configuring the system with your search filters, enco
 
 Then, index the items from you database that you want to use in the system for checking similarity.
 
-When you index your data, the system filters the items into separate partitions based on the filters you configured. The filters he system compares items within a partition but not across. 
+When you index your data, the system filters the items into separate partitions based on the filters you configured. The system compares items within a partition but not across. 
 
 .. note::
    The filters are hard filters.
@@ -15,11 +15,11 @@ When you index your data, the system filters the items into separate partitions 
 When you query your data, the system uses the encoders you configured to control how items within each partition are compared for similarity.
 
 .. note::
-   The system can search by item to find items that are similar and can search a database by user to find items the user is likely to prefer.
+   The system can search the indexed items by item to find items that are similar and can search by user to find items the user is likely to prefer.
 
 The system uses the metric value that you configure as a cutoff for what it considers as within the bounds of acceptable similarity.
 
-Configuring system
+Configure
 -------------------
 
 Configure the recsplain system with your filters, encoders, and metric.
@@ -31,19 +31,19 @@ Use filters to separate the items into partitions for comparison.
 
 Each filter is comprised of a field and possible values for the field. 
 
-Here is an example:
+Here is an example of data to pass to the `init_schema` method to configure the system.
 
 .. literalinclude:: init_schema_example.json
   :language: JSON
 
 .. note::
-   The field should correspond to a field in your item database and the values to possible values for those fields in your item database.
+   Each field should correspond to a field in your item database and the values to possible values for those fields in your item database.
 
 The system creates a partition for each value.
 
 In the example above, the system creates two partitions. One for US items and another for EU.
 
-..note::
+.. note::
    When analyzing similarity, the system compares items within a partition but not across.
 
 Encoders
@@ -55,10 +55,10 @@ As you see in the example above, each encoder is comprised of a field, possible 
 
 Here is what each does:
 
--``field``: tells the system a feature to use in the similarity check
--``values``: tells the system which values to check for the field
--``type``: the type of encoder to use for checking similarity for this feature
--``weight``: the importance the system should attribute to this feature in the similarity check
+- ``field``: tells the system a feature to use in the similarity check
+- ``values``: tells the system which values to check for the field
+- ``type``: the type of encoder to use for checking similarity for this feature
+- ``weight``: the importance the system should attribute to this feature in the similarity check
 
 .. note::
    The encoders are soft filters. Instead of excluding or separating data for the similarity check, the encoders are for dictating how the system checks for similarity.
@@ -73,22 +73,22 @@ The metric sets the upper-bound for what to system should consider as within the
 
 The value for the metric is a number that represents the similarity between items or how likely a user is to prefer an item.
 
-..note::
+.. note::
    The system uses the distance between vectors to make recommendations based on similarity. So technically the metric is a number that represents acceptable distance. More on vectors below.
 
-Start with a number like `10` or `12` and then fine-tune it based on your data and users. 
+Start with a number like 10 or 12 and then fine-tune it based on your data and users. 
 
 .. note::
    The lower the number for metric, the more similar the items need to be for the system to consider them similar items.
 
-Indexing Items
+Index
 -------------------
 
 Add items from your database to the recsplain system so that the system can compare items and recommend items to users.
 
 Each item that you index in the recsplain system should have an id and a field for each filter and encoder field in your configuration.
 
-Here is an example.
+Here is an example of data to pass to the `index` method to configure the system.
 
 .. literalinclude:: index.json
   :language: JSON
@@ -106,12 +106,12 @@ Also, notice in the example that the fields other than the id appear as either a
 
 Based on the encoders and filters in the configuration, the recsplain system indexes items from your database into the system and initiates itself for querying.
 
-Comparing Items
+Compare
 -------------------
 
 The system can search by item for similar items based on the item features and your configurations to the recsplain system.
 
-Here is an example search object for an item.
+Here is an example of data to pass to the `query` method to search by item for similar items.
 
 .. literalinclude:: item_query.json
   :language: JSON
@@ -125,7 +125,7 @@ When searching by item for similar items, the system takes the item features for
 
 The system compares the vector for your search item to each item vector for the items you indexed to calculate the distance between the search item vector and each database item vector.
 
-Here is an example result,
+Here is an example result.
 
 .. literalinclude:: item_result.json
   :language: JSON
@@ -145,23 +145,44 @@ In the example above, A is overall more similar to the search item than B is to 
 
 The explanations show that is because A has a lower distance for category than B by 8 and is higher distance for price than B but by only 2. Plus, the encoder configurations weighted category twice as important as price. Because A beats B on category by 4x more than B beats A on price and category is greater weight, A has two reasons to be more similar to the search than B has.
 
-Recommending Items
+Recommend
 -------------------
 
-The recsplain system can recommend items to users.
+The recsplain system can recommend items to users. Instead of searching by item like above, you search for similar items for a user.
 
 When recommending items to a user, the recsplain system takes the user's previous history with the items, such as their item purchase history, and checks it against the items in the database for similarity.
 
 .. note::
    For example, for an online store, the system recommends the items the user is most likely to buy based on how similar the items are to the items the user previously bought.
 
-More specifically, the recsplain system creates a numerical vector for each user based on the user's history with the items and taking into account the features of those items.
+Here is an example of data to pass to the `user_query` method to search by user for items they likely prefer.
 
-The vector positions and values convey the user as a blend of the features of the items based on the user's item history. 
+.. literalinclude:: user_query.json
+  :language: JSON
+
+Notice that the user object has similar information as the item search object but organized differently. The user object has a data field like the item object containing a value from the configuration filters.
+
+The user object, however, has an item history that the item search object does not.
+
+The item history is an array representing the user's history with the items where each element in the array is an item id.
+
+.. note::
+   In the example code, this user previously bought item 1 one time and item 3 twice.
+
+To search for items based on the user object, the recsplain system creates a numerical vector for the user that resembles item vectors. To make a user vectors that resemble item vectors, the system takes the user's history with the items to create a vector for the user based on the features in the user's item history.
+
+The vector positions and values convey the user as a blend of the features of the items based on the user's item history so that the system can compare apples to apples, so to speak. 
 
 .. note:: 
-   In other words, if a customer bought three bananas, an apple, and a carrot, their vector represents a combination of the features from three bananas, an apple, and a carrot.
+   In other words, if a customer bought three bananas, an apple, and a carrot, their user vector represents a combination of the features from three bananas, an apple, and a carrot. 
+
+It is like converting a user to an item!
 
 The recsplain system compares the characteristics of the user vector to the characteristics of the items to calculate the distance between the user vector and item.
 
 The closer the distance, the more likely the user will prefer the item.
+
+The results for the user search are the same as for the item search except the user search distances are floats instead of integers.
+
+.. literalinclude:: user_result.json
+  :language: JSON
