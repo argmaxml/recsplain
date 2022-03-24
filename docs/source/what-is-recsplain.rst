@@ -30,7 +30,7 @@ After configuring the system, easily index a list of items from your database to
 
 Make recommendations
 -------------------------------------------
-Start making recommendations by item or by user by either using the system as a webserver or calling the methods from the recsplain code itself. 
+Use the system as a webserver or by calling the methods from the recsplain code itself to start making recommendations by item or by user.  
 
 Search by item to get similar items ordered by most to least similar, their distances from the search item based on the item vectors, and explanations about the recommendations.
 
@@ -38,14 +38,14 @@ Search by user to get items the user most likely prefers ordered from most to le
 
 Use explanations
 -------------------------------------------
-The recsplain system explains it recommendations so that you can better understand its recommendations.
+The recsplain system explains its recommendations so that you can better understand the results.
 
 By setting the ``explian`` value to ``1`` when running an item or user query, the recsplain system returns explanations.
 
 .. note::
    The explanations are the distances for each field in the encoders that you set when configuring the system.
 
-Therefore, not only do you get recommendations and overall distances, the recsplain provides more granular results to help you better understand the results.
+Therefore, not only do you get recommendations and overall distances, the recsplain provides more granular results to help you better understand the recommendations.
 
 Get started
 -------------------------------------------

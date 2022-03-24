@@ -1,20 +1,93 @@
 How it works
 ================
 
-The system filters items into separate partitions for comparison and uses encoders to control how items within each partition are compared for similarity.
+The recsplain system can be installed in a Python project and used as a webserver or by calling the methods from the package.
+
+After installing, start by configuring the system with your search filters and encoders and index your data.
+
+When you index your data, the system filters items into separate partitions for comparison based on the filters you configured.
 
 The system can search a database by item to find items that are similar and can search a database by user to find items the user is likely to prefer.
 
-Initiating system
+When you query your data, the system uses the encoders you configured to control how items within each partition are compared for similarity.
+
+Configuring system
 -------------------
 
-Initiate the recsplain system with your filters, encoders, and metric.
+Configure the recsplain system with your filters, encoders, and metric.
+
+Filters
+*******************
+
+Use filters to separate the items into partitions for comparison. 
+
+Each filter is comprised of a field and possible values for the field. 
+
+.. note::
+   The field should correspond to a field in your item database and the values to possible values for those fields in your item database.
+
+Here is an example:
+
+.. literalinclude:: init_schema_example.json
+  :language: JSON
+
+The system creates a partition for each value.
+
+In the example above, the system creates two partitions. One for US items and another for EU.
+
+..note::
+   When analyzing similarity, the system compares items within a partition but not across.
+
+Encoders
+*******************
+
+Use encoders to control how the system compares items within each partition.
+
+As you see in the example above, each encoder is comprised of a field, possible values for the field, an encoder type, and a weight.
+
+Here is what each does:
+
+-``field``: tells the system a feature to use in the similarity check
+-``values``: tells the system which values to check for the field
+-``type``: the type of encoder to use for checking similarity for this feature
+-``weight``: the importance the system should attribute to this feature in the similarity check
+
+Metric
+*******************
+
+The metric sets the upper-bound for what you want to system to consider similar and therefore include in the results.
+
+The value for the metric is a number that represents the similarity between to items or how likely a user is to prefer an item.
+
+..note::
+   The systems uses the distance between vectors to make recommendations based on similarity. More on that below.
+
+Start with a number like `10` or `12` and then fine-tune it based on your data and users.
 
 Indexing Items
 -------------------
 
-The recsplain system indexes items from your database.
+Add items from your database to the recsplain system so that the system can compare items and recommend items to users.
 
+Each item that you index in the recsplain system should have an id, a field for each filter and encoder field in your configuration.
+
+Here is an example.
+
+.. literalinclude:: index.json
+  :language: JSON
+
+The id should be a unique value and serves an important role in the similarity check and the results. 
+
+The system uses the id in the check and results of each query.
+
+Thererfore, the id should be a value that makes it easy to identify each item.
+
+.. note::
+   For example, it is common to use the SKU number of a prodcut as the value for the id.
+
+Also, notice in the example that the fields other than the id appear as either a filter or encoder field in the configutation example code above.
+
+Based on the encoders and filters in the configuration, the recsplain system indexes items from your database into the system and initiates itself for querying.
 
 Comparing Items
 -------------------
