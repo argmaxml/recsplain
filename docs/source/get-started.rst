@@ -7,6 +7,6 @@ Get Started
 
    Install <installation>
    Configure <configuration>
-   Recommend <recommendations>
-   FAQ <faq>
-   Contribution Guidelines <contribution-guidelines>
+   Index <data-index>
+   Item Query <item-query>
+   User Query <user-query>

@@ -1,188 +1,111 @@
 How it works
-================
+========================
 
-The recsplain system can be installed in a Python project and used as a webserver or by calling the methods from the package.
+The recsplain system is a Python package that you can use as a webserver or with Python bindings.
 
-After installing, start by configuring the system with your search filters, encoders, and metric.
+Easy Setup
+------------------------
 
-Then, index the items from you database that you want to use in the system for checking similarity.
+It is just three easy steps to get started.
 
-When you index your data, the system filters the items into separate partitions based on the filters you configured. The system compares items within a partition but not across. 
+First, install the package.
 
-.. note::
-   The filters are hard filters.
+Second, configure the system with your search filters, encoders, and metric. 
 
-When you query your data, the system uses the encoders you configured to control how items within each partition are compared for similarity.
+Third, index the items from you database that you want to use in the system for checking similarity.
 
-.. note::
-   The system can search the indexed items by item to find items that are similar and can search by user to find items the user is likely to prefer.
-
-The system uses the metric value that you configure as a cutoff for what it considers as within the bounds of acceptable similarity.
-
-Configure
--------------------
-
-Configure the recsplain system with your filters, encoders, and metric.
-
-Filters
-*******************
-
-Use filters to separate the items into partitions for comparison. 
-
-Each filter is comprised of a field and possible values for the field. 
-
-Here is an example of data to pass to the `init_schema` method to configure the system.
-
-.. literalinclude:: init_schema_example.json
-  :language: JSON
+That is it. You can start making recommendations!
 
 .. note::
-   Each field should correspond to a field in your item database and the values to possible values for those fields in your item database.
+   Try the :doc:`quickstart<quickstart>` or :doc:`get-started<get started>`!
 
-The system creates a partition for each value.
+Make recommendations in two different ways.
 
-In the example above, the system creates two partitions. One for US items and another for EU.
-
-.. note::
-   When analyzing similarity, the system compares items within a partition but not across.
-
-Encoders
-*******************
-
-Use encoders to control how the system compares items within each partition.
-
-As you see in the example above, each encoder is comprised of a field, possible values for the field, an encoder type, and a weight.
-
-Here is what each does:
-
-- ``field``: tells the system a feature to use in the similarity check
-- ``values``: tells the system which values to check for the field
-- ``type``: the type of encoder to use for checking similarity for this feature
-- ``weight``: the importance the system should attribute to this feature in the similarity check
+- search by item for similar items based on item features
+- search by user for items the user is most likely to prefer based on their history with the items
 
 .. note::
-   The encoders are soft filters. Instead of excluding or separating data for the similarity check, the encoders are for dictating how the system checks for similarity.
+   Learn more about recsplain by :doc:`exploring<explore>` more about how the system works.
 
-Metric
-*******************
+Custom configuration
+------------------------
 
-The metric sets the upper-bound for what to system should consider as within the acceptable limit for similarity. 
+The recsplain system is customizable in several important ways.
 
-.. note::
-   It is a hard filter on the results.
+Similarity check
+************************
 
-The value for the metric is a number that represents the similarity between items or how likely a user is to prefer an item.
-
-.. note::
-   The system uses the distance between vectors to make recommendations based on similarity. So technically the metric is a number that represents acceptable distance. More on vectors below.
-
-Start with a number like 10 or 12 and then fine-tune it based on your data and users. 
+First, customize how the system organizes and compares the items in your database. Simply send your configuration data to the system.
 
 .. note::
-   The lower the number for metric, the more similar the items need to be for the system to consider them similar items.
+   If you are using recsplain as a web server, you send the data in the body of a POST request. If you are using it with Python bindings, you call the configuration method and pass your configuration data as an argument.
 
-Index
--------------------
+The configuation data is comprised of your filters, encoders, and metric.
 
-Add items from your database to the recsplain system so that the system can compare items and recommend items to users.
-
-Each item that you index in the recsplain system should have an id and a field for each filter and encoder field in your configuration.
-
-Here is an example of data to pass to the `index` method to configure the system.
-
-.. literalinclude:: index.json
-  :language: JSON
-
-The id should be a unique value and serves an important role in the similarity check and the results. 
-
-The system uses the id in the check and is how you identify the item in the results for each query.
-
-Thererfore, the id should be a value that makes it easy to identify each item.
+Filters are hard filters. Use them to control which items are checked for similarity each time you run an item or user query.
 
 .. note::
-   For example, it is common to use the SKU number of a prodcut as the value for the id.
+   The system uses the hard filters to separate the indexed items into partitions. When searching, the system checks whether the search item or user is similar to the items within a particular partition **only if** the search item or user fits the filter criteria for that partition.
 
-Also, notice in the example that the fields other than the id appear as either a filter or encoder field in the configutation example code above.
-
-Based on the encoders and filters in the configuration, the recsplain system indexes items from your database into the system and initiates itself for querying.
-
-Compare
--------------------
-
-The system can search by item for similar items based on the item features and your configurations to the recsplain system.
-
-Here is an example of data to pass to the `query` method to search by item for similar items.
-
-.. literalinclude:: item_query.json
-  :language: JSON
-
-The `k` value is the number of similar items you want the system to return and the data are the features of the item you are searching for.
+Encoders are soft filters. Use them to control how the system checks for similarity.
 
 .. note::
-   Like the item features in the filters and indexing stages, the search item data fields should correspond to a field in your item database.
+   The system uses encoders to determine how to check for similarity within each partition.
 
-When searching by item for similar items, the system takes the item features for each item and creates a numerical vector representing the item. 
+Data Index
+************************
 
-The system compares the vector for your search item to each item vector for the items you indexed to calculate the distance between the search item vector and each database item vector.
+Second, customize the data by indexing data from your database. The recsplain makes it easy to index the items from your database that you want to include in the recommendation engine.
 
-Here is an example result.
-
-.. literalinclude:: item_result.json
-  :language: JSON
-
-The index positions of the ids correspond to the index positions of the distances and explanations.
-
-The recommendations are ordered by index position from most to least similar with the lowest index position holding the most similar item. 
+This way you can make recommendations based on your actual data.
 
 .. note::
-   In the example, A is the top recommendation and has a distance of 1 from the search item. B is the second next best recommendation and has a distance of 3 from the search item.
-
-The distance values are overall values based on the item features. The lower the distance between two vectors, the more similar the items are to one another.
-
-The explanations have distances values for each encoder. 
-
-In the example above, A is overall more similar to the search item than B is to the search item.
-
-The explanations show that is because A has a lower distance for category than B by 8 and is higher distance for price than B but by only 2. Plus, the encoder configurations weighted category twice as important as price. Because A beats B on category by 4x more than B beats A on price and category is greater weight, A has two reasons to be more similar to the search than B has.
-
-Recommend
--------------------
-
-The recsplain system can recommend items to users. Instead of searching by item like above, you search for similar items for a user.
-
-When recommending items to a user, the recsplain system takes the user's previous history with the items, such as their item purchase history, and checks it against the items in the database for similarity.
+   If you are using recsplain as a web server, you send the item data in the body of a POST request. If you are using it with Python bindings, call the indexing method and pass your item data as an argument.
 
 .. note::
-   For example, for an online store, the system recommends the items the user is most likely to buy based on how similar the items are to the items the user previously bought.
+   Index only the data that you want to include as possible recommendations.
 
-Here is an example of data to pass to the `user_query` method to search by user for items they likely prefer.
 
-.. literalinclude:: user_query.json
-  :language: JSON
+Query multiple ways
+------------------------
 
-Notice that the user object has similar information as the item search object but organized differently. The user object has a data field like the item object containing a value from the configuration filters.
+Recommend items by checking for similarity based on an item or a user.
 
-The user object, however, has an item history that the item search object does not.
+When you search by item or user, you send the system data about the seach item or user. 
 
-The item history is an array representing the user's history with the items where each element in the array is an item id.
+The search item data consists of an id and values for item features that correspond to the filters and encoders. 
+
+The user data consists of a user id and an item history, like a purchase history, where each item in the history is and id for an indexed item.
 
 .. note::
-   In the example code, this user previously bought item 1 one time and item 3 twice.
+   If you are using recsplain as a web server, you send the seach data in the body of a POST request. If you are using it with Python bindings, call the search method and pass your item data as an argument.
 
-To search for items based on the user object, the recsplain system creates a numerical vector for the user that resembles item vectors. To make a user vectors that resemble item vectors, the system takes the user's history with the items to create a vector for the user based on the features in the user's item history.
+.. note::
+   The system has separate methods for item and user searches.
 
-The vector positions and values convey the user as a blend of the features of the items based on the user's item history so that the system can compare apples to apples, so to speak. 
 
-.. note:: 
-   In other words, if a customer bought three bananas, an apple, and a carrot, their user vector represents a combination of the features from three bananas, an apple, and a carrot. 
+Understand results
+------------------------
 
-It is like converting a user to an item!
+Each time you search by item or user, the system recommends items by comparing item features to see how similiar the features are to one another.
 
-The recsplain system compares the characteristics of the user vector to the characteristics of the items to calculate the distance between the user vector and item.
+The system returns items it deems similar to the search item or user, the degree of similar of each result, and optional explanations for each item in the results.
 
-The closer the distance, the more likely the user will prefer the item.
+The system returns the items in an array ordered by most to least similar. The first item in the array is the item that is most similar and the last item in the array is the least similar.
 
-The results for the user search are the same as for the item search except the user search distances are floats instead of integers.
+The degree of similarity is measured using the distance between the items where the distance is measured based on vector representations of the items.
 
-.. literalinclude:: user_result.json
-  :language: JSON
+.. note::
+   A vector is . . .
+
+When searching by item, similarity consists of comparing the search item vector to the vector for each item in the database.
+
+When searching by user, similarity consists of creating an item vector for the user based on the user's history with the item and comparing this user vector to the item vector for each indexed item.
+
+For each item in the array, the system also returns an array of distances telling you how similar each item is to the search item or user.
+
+Optionally, the system also returns an array of explanations consisting of more granular result data from which the system derived the final recommendations and overall distances.
+
+
+
+

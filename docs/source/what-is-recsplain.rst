@@ -10,7 +10,8 @@ Use the system to compare items from your database for similarity and to recomme
 - search by item to find similar items in your database based on item features
 - recommend items to users based on the user's history with the items
 
-One common application of recsplain is in online stores where the system recommends products to customers based on items the customer already bought from the store.  
+.. note::
+   One common application of recsplain is in online stores where the system recommends products to customers based on items the customer already bought from the store.  
 
 .. note::
    The recommendation system is not limited to just online stores. The applications are virtually endless. 

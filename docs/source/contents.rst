@@ -2,5 +2,5 @@
    :maxdepth: 2
    
    Welcome <index>
-   Get Started <get-started>
-   Using TRecSys <using-trecsys>
+   Get started <get-started>
+   Explore <explore>
