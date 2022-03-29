@@ -1,6 +1,10 @@
 Get Started
 =============
 
+It takes 3 minutes to install and configure. 
+
+Follow the quickstart below to create your very own similarity search engine.
+
 
 .. toctree::
    :maxdepth: 2

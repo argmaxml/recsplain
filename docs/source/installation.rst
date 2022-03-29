@@ -6,10 +6,12 @@ Install
 
 Install the recsplain system from PyPI using ``pip``. 
 
+
 .. code::
     pip install recsplain
 
 The package is accessible by running a server to use the rest API or by importing into your code using Python bindings.
+
 
 Run Server
 ----------------

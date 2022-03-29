@@ -4,6 +4,13 @@ Configuration
 
 Configure the recsplain system using ``init_schema``. It requires you send data when you call it, and in response it returns data about the system configurations.
 
+Configure the system so that you can tell it how to:
+
+- partition the items into separate containers 
+- compare items within the same partition 
+
+To configure the system, input your preferences using ``init_schema``.
+
 Input
 ----------------
 
@@ -17,6 +24,10 @@ Here is an example of data to pass to the `init_schema` method to configure the 
 
 .. literalinclude:: init_schema_example.json
   :language: JSON
+
+.. note::
+    The example is what you send in a POST body to the `init_schema` server route or pass as an argument to the `init_schema` method.
+
 
 Filters
 ****************
