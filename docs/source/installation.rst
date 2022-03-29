@@ -3,7 +3,7 @@ Install
 
 Install the recplain system and then use it as a web server or import it into your code and call the methods directly.
 
-Install
+pip install
 ----------------
 
 Install the recsplain system from PyPI using ``pip``. 

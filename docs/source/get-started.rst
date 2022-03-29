@@ -1,9 +1,11 @@
 Get Started
 =============
 
-It takes 3 minutes to install and configure. 
+It takes 3 minutes to install and configure the recsplain system. 
 
-Follow the quickstart below to create your very own similarity search engine.
+You can start searching by item to find similar items or by user to find items a user prefers.
+
+Follow the links below to start making your very own similarity search engine.
 
 
 .. toctree::
