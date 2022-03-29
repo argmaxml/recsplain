@@ -1,5 +1,5 @@
 
-Configuration
+Configure
 =================
 
 After installing the package, configure the system with your filters, encoders, and metric.
@@ -160,7 +160,7 @@ Total Items
 The total items is the total number of items indexed.
 
 .. note::
-    Learn more about :doc:`data-index<indexing items from your database>`.
+    Learn more about :doc:`indexing items from your database<data-index>`.
 
 
 

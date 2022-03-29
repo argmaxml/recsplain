@@ -1,4 +1,4 @@
-Instal
+Install
 ================
 
 Install the recsplain system from PyPI using ``pip``. 
@@ -6,7 +6,8 @@ Install the recsplain system from PyPI using ``pip``.
 .. code::
     pip install recsplain
 
-After you install the package, use it by either 
+After you install the package, use it by either:
+
 - running a server to call the functions from the rest API or 
 - by importing into your code using Python bindings.
 
