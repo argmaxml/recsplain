@@ -4,5 +4,6 @@
     "price": "low",
     "category": "meat",
     "country": "US"
-  }
+  },
+  "explain": 1
 }
