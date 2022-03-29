@@ -2,16 +2,18 @@
 Configuration
 =================
 
-Configure the recsplain system using ``init_schema``. It requires you send data when you call it, and in response it returns data about the system configurations.
+After installing the package, configure the system with your filters, encoders, and metric.
 
-Configure the system so that you can tell it how to:
+The reasons you need to configure the system is so that it knows how to:
 
-- partition the items into separate containers 
+- partition your items into separate containers 
 - compare items within the same partition 
 
-To configure the system, input your preferences using ``init_schema``.
+To enter your configuration settings, use the ``init_schema`` method. 
 
-Input
+It requires you send data when you call it, and in response it returns data about the system configurations.
+
+Inputs
 ----------------
 
 The ``init_schema`` method requires the following inputs: 
@@ -27,7 +29,6 @@ Here is an example of data to pass to the `init_schema` method to configure the 
 
 .. note::
     The example is what you send in a POST body to the `init_schema` server route or pass as an argument to the `init_schema` method.
-
 
 Filters
 ****************
@@ -109,7 +110,7 @@ Start with a number like 10 or 12 and then fine-tune it based on your data and u
 .. note::
    The lower the number for metric, the more similar the items need to be for the system to consider them similar items.
 
-Output
+Outputs
 ----------------
 
 The ``init_schema`` method returns an object containing:
@@ -118,7 +119,7 @@ The ``init_schema`` method returns an object containing:
 - ``vector_size``
 - ``feature_sizes``
 
-Here is an example of a response from `init_schema`
+Here is an example of a response from `init_schema`.
 
 .. literalinclude:: init_schema_response.json
   :language: JSON

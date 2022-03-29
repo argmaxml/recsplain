@@ -1,7 +1,24 @@
 How it works
 ========================
 
-The recsplain system is a Python package that you can use as a webserver or with Python bindings.
+The recsplain system is a Python package  to make recommendations based on item or user.
+
+It is easy to install, configure, and index your items. 
+
+.. note::
+   You can use it as a webserver or with Python bindings to call the methods in your code.
+
+You can search your indexed items by item or user to find similar items.
+
+When searching by item, the system takes the item features for each item and creates a numerical vector representing the item. 
+
+The system compares the vector for your search item to each item vector for the items you indexed to calculate the distance between the search item vector and each database item vector.
+
+When searching by user, the system creates a numerical vector representing the user as an item vector based on the user's history with the items to calculate the distance between the search user vector and each database item vector.
+
+The smaller the distance between vectors, the more similar they are.
+
+Read below to learn more about setup and how it works.
 
 Easy Setup
 ------------------------
@@ -12,12 +29,12 @@ First, install the package.
 
 Second, configure the system with your search filters, encoders, and metric. 
 
-Third, index the items from you database that you want to use in the system for checking similarity.
+Third, index the items from your database that you want to use in the system for checking similarity.
 
 That is it. You can start making recommendations!
 
 .. note::
-   Try the :doc:`quickstart<quickstart>` or :doc:`get-started<get started>`!
+   Try it now by following the `get-started<get started> guide`!
 
 Make recommendations in two different ways.
 

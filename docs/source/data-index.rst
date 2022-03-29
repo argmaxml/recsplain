@@ -1,16 +1,16 @@
 Index
 ===================
 
-Add items from your database to the recsplain system using ``index``.
+After installing and configuring the package, add items from your database to the recsplain system so that when you search by item or user, you have items in the system to check for similarity.
 
-Add items to the system so that when you search by item or user, you have items in the system to check for similarity.
+To enter your configuration settings, use the ``index`` method. 
 
 .. note::
    If you do not index items, when you search there will be nothing to check the search against for similarity.
 
 When you index your data, the system filters the items into separate partitions based on the filters you configured. 
 
-Input
+Inputs
 -------------------
 
 The ``index`` method requires that you input data for each item that you want in the system.
@@ -21,7 +21,7 @@ Each item object should have an id and a field for each filter field and encoder
 
 Here is an example:
 
-.. literalinclude:: index.json
+.. literalinclude:: data-index.json
   :language: JSON
 
 The id should be a unique value and serves an important role in the similarity check and the results because the system uses the id in the similarity check and the id is how you identify the item in the results for each query.
@@ -38,16 +38,16 @@ Also, notice in the example that the fields other than the id appear as either a
 
 Call the ``index`` method as many times as you want. Each time you call it, the data you send is added to the existing data without replacing the existing data.
 
-Output
+Outputs
 -------------------
 
 The ``index`` method returns the number of affected partitions.
 
 A partition is an affected partition if the system added the item to the partition.
 
-Here is an example of data to pass to the `index` method to add items to the system.
+Here is an example of a response from `index`.
 
-.. literalinclude:: index.json
+.. literalinclude:: data-index-response.json
   :language: JSON
 
 .. note::

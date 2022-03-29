@@ -1,22 +1,20 @@
-Installation
+Instal
 ================
 
-Install
-----------------
-
 Install the recsplain system from PyPI using ``pip``. 
-
 
 .. code::
     pip install recsplain
 
-The package is accessible by running a server to use the rest API or by importing into your code using Python bindings.
+After you install the package, use it by either 
+- running a server to call the functions from the rest API or 
+- by importing into your code using Python bindings.
 
 
 Run Server
 ----------------
 
-After installing, use the system as a web server.
+To use the system as a web server, enter the following command in your terminal to start the recsplain web server.
 
 .. code::
     python -m recsplain
@@ -28,7 +26,7 @@ You should see a swagger interface for the REST API.
 Import
 ----------------
 
-After installing, import the package into your code to call the methods directly.
+Instead of using the system as a web server, you can import the package into your code to call the methods directly.
 
 Import the package using the following import statement.
 

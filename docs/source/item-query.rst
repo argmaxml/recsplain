@@ -1,21 +1,42 @@
 Item query
 ===================
 
-The system can search by item for similar items based on the item features and your configurations to the recsplain system.
+After you configure the system and index your items, you can use the system to search by item for similar items. 
 
-Here is an example of data to pass to the `query` method to search by item for similar items.
+To search by item, use the ``query`` method. 
+.. note::
+  To seach by user, see the :doc:`user-query<user query>` option.
+
+It requires you send data about the search item when you call it, and in response it returns similar items.
+
+Inputs
+----------------
+
+The ``query`` method requires the following inputs: 
+- ``k``
+- ``data``
+
+Here is an example of data to pass to the ``query`` method.
 
 .. literalinclude:: item_query.json
   :language: JSON
 
-The `k` value is the number of similar items you want the system to return and the data are the features of the item you are searching for.
+
+k
+******
+The `k` value is the number of similar items you want the system to return. 
+
+data
+******
+
+The data are the features of the item you are searching for.
 
 .. note::
    Like the item features in the filters and indexing stages, the search item data fields should correspond to a field in your item database.
 
-When searching by item for similar items, the system takes the item features for each item and creates a numerical vector representing the item. 
 
-The system compares the vector for your search item to each item vector for the items you indexed to calculate the distance between the search item vector and each database item vector.
+Outputs
+----------------
 
 Here is an example result.
 
