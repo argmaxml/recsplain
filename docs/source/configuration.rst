@@ -13,14 +13,10 @@ To enter your configuration settings, use the ``init_schema`` method.
 
 It requires you send data when you call it, and in response it returns data about the system configurations.
 
-Inputs
+Read below to see an example and to learn more about the inputs and outputs.
+
+Example
 ----------------
-
-The ``init_schema`` method requires the following inputs: 
-
-- ``filters`` 
-- ``encoders``
-- ``metric``
 
 Here is an example of data to pass to the ``init_schema`` method to configure the system.
 
@@ -30,40 +26,45 @@ Here is an example of data to pass to the ``init_schema`` method to configure th
 .. note::
     The example is what you send in a POST body to the `init_schema` server route or pass as an argument to the `init_schema` method.
 
-Here is an example of how to call the ``init_schema`` method with the example data above:
+Here is an example of how to call the ``init_schema`` method with the example data above.
 
 .. literalinclude:: init_schema_example.py
   :language: python
 
+Here is an example of a response from ``init_schema``.
+
+.. literalinclude:: init_schema_response.json
+  :language: JSON
+
+Inputs
+----------------
+
+The ``init_schema`` method requires the following inputs: 
+
+- ``filters`` 
+- ``encoders``
+- ``metric``
+
 Filters
 ****************
 
-Filters control which items are checked for similarity each time you run an item or user query.
+Filters control which items the system checks for similarity each time you run an item or user query.
 
-As the example above demonstrates, each filter is comprised of a field and possible values for the field. 
+As the example above demonstrates, each filter is comprised of a field and possible values for the field. The two most common hard filters are location and language.
 
 .. note::
    Each field should correspond to a field for the items in your item database and the values to possible values for those fields.
 
-When you run the ``init_schema`` method with your inputs, the system creates a partition for each filter value.
-
-.. note:: 
-    When you search, the system does not necessarily check against all indexed items. It will check for similarity only the items that meet the criteria of the filters.
+When you run the ``init_schema`` method, the system creates a partition for each filter value.
 
 In each partition are the indexed items whose value for the filter field matches the value for that partition.
 
-.. note::
-    In the example above, the system creates two partitions. One for US items and another for EU.
-
-Only if the search item's or user's value for that feature matches the partition's value does the system check the search item or user against the items in the partition. 
+When you search, the system checks the search item or user against the items in a particular partition only if the search item's or user's value for that feature matches the partition's value.
 
 .. note:: 
-    In the example above, if the search item is a US item or if the search user is based in the US, the system only searches the US partition, not the EU partition.
+    In the example above, the system creates two partitions. One for US items and another for EU. When searching, if the search item or user is based in the US, the system only searches the US partition, not the EU partition.
 
 Therefore, ``filters`` are hard filters and are used to separate or exclude items for comparison.
-
-.. note::
-    The two most common hard filters are location and language.
 
 Encoders
 ****************
@@ -74,10 +75,10 @@ As you see in the example above, each encoder is comprised of a field, possible 
 
 Here is what each does:
 
-- ``field``: tells the system a feature to use in the similarity check
-- ``values``: tells the system which values to check for the field
+- ``field``: a feature to use in the similarity check
+- ``values``: values to check for the field
 - ``type``: the type of encoder to use for checking similarity for this feature
-- ``weight``: the importance the system should attribute to this feature in the similarity check
+- ``weight``: the relative importance the system should attribute to this feature in the similarity check
 
 Unlke the filters, the encoders are not hard filters and therefore do not play a role in creating the partitions.
 
@@ -90,7 +91,7 @@ The values for each field in the encoder should be values that each item could p
 The type of encoder sets how the system calculates similarity.
 
 .. note::
-    Check out the :doc:`encoders-list<list of encoders>` to learn what encoders you can use and how they work.
+    Check out the :doc:`list of encoders<encoders-list>` to learn what encoders you can use and how they work.
 
 The weight tells the system the relative importance of each feature in the encoder.
 
@@ -101,9 +102,6 @@ Metric
 *******************
 
 The metric sets the upper-bound for what to system should consider as within the acceptable limit for similarity. 
-
-.. note::
-   It is a hard filter on the results.
 
 The value for the metric is a number that represents the similarity between items or how likely a user is to prefer an item.
 
@@ -124,40 +122,36 @@ The ``init_schema`` method returns an object containing:
 - ``vector_size``
 - ``feature_sizes``
 
-Here is an example of a response from `init_schema`.
-
-.. literalinclude:: init_schema_response.json
-  :language: JSON
-
 Partitions
 ****************
 
-The ``partitions`` value is the number of partitions the system made based on your configuration.
+The ``partitions`` value is the number of partitions the system made based on your configuration. When you index items, the items are added to the partitions only if the item meets the filter criteria.
 
-A partition is an instance of the similarity server. 
+.. note::
+    A partition is an instance of the similarity server. 
 
-As explained above, the number of partitions is based on the number of values your `init_schema` has for `filters`.
+As explained above, the number of partitions is based on the number of values ``init_schema`` has for ``filters``.
 
-When you index items, the items are added to the partitions only if the item meets the filter criteria.
 
 Feature Sizes
 ****************
 
-The features sizes contains the number of features for each encoder, plus one for each encoder to account for unknown feature values.
+Each encoder has a feature size. The feature size is the number of features for each encoder, plus one. 
+
+The plus one is to account for unknown feature values.
 
 In the example above, the price encoder has three values: ``["low", "mid", "high"]``.
 
 Its feature size, therefore, is 4 because of its three values and the possibility for unknown values.
 
-Similar for the category encoder, its feature size is 3 because of its two values and the possibility for more.
+Similarly, the category feature size is 3 because of its two values and the possibility for more.
 
 Vector Size
 ****************
 
 The vector size is the sum of the features sizes. 
 
-.. note::
-    In the example above, the vector size is 7 because the price encoder has 3 values, the category encoder has 2 values, and each of the encoders has the possibility for an unknown value.
+In the example above, the vector size is 7 because the price encoder has 3 values, the category encoder has 2 values, and each of the encoders has the possibility for an unknown value.
 
 Total Items
 ****************
