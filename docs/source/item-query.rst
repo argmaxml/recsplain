@@ -111,9 +111,11 @@ The explanations tell you more about how the system calculated the distances by 
 
 In the example above, A is overall more similar to the search item than B is to the search item.
 
-The explanations show why. It is because A has a smaller distance for category than B by 8 and is greater distance for price than B but by only 2. 
+The explanations show why. 
 
-Plus, the encoder configurations weighted category twice as important as price. 
+It is because A has a smaller distance for category than B by 8 and is greater distance for price than B but by only 2. 
+
+Plus, the encoder configurations gave category a weight of 2 and price a weight of 1 making category twice as important as price. 
 
 .. note::
   Because A beats B on category by 4x more than B beats A on price and because category is greater weight, A has two reasons to be more similar to the search than B has.
