@@ -1,5 +1,6 @@
-Using TRecSys
-==============
+Using the recsplain system
+==========================================
+
 
 .. toctree::
    :maxdepth: 2
