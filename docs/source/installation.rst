@@ -9,6 +9,7 @@ pip install
 Install the recsplain system from PyPI using ``pip``. 
 
 .. code-block:: python
+
     pip install recsplain
 
 After you install the package, use it by either:
@@ -23,6 +24,7 @@ Run Server
 To use the system as a web server, enter the following command in your terminal.
 
 .. code-block:: python
+
     python -m recsplain
 
 Browse to http://127.0.0.1:5000/docs.
@@ -36,7 +38,8 @@ Instead of using the system as a web server, you can import the package into you
 
 Import the package using the following import statement.
 
-.. code-block::
+.. code-block:: python
+
     import recssplain as rx
 
 
