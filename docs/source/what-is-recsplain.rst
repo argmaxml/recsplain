@@ -28,12 +28,12 @@ It is easy to install and customize to suit your needs. You can configure the sy
 - filters to categorically exclude and separate data for comparisons
 - encoders to dictate how the system checks whether items are similar
 
-After configuring the system, easily index a list of items from your database to start making recommendations to your users.
+After configuring the system, easily index a list of items from your database to start recommeding items to your users.
 
 Make recommendations
 -------------------------------------------
 
-Use the system as a webserver or by calling the methods from the recsplain code itself to start making recommendations by item or by user.  
+Use the system as a webserver or by calling the methods from the recsplain code itself to recommend items by item or by user.  
 
 Search by item to get similar items ordered by most to least similar, their distances from the search item based on the item vectors, and explanations about the recommendations.
 
@@ -43,7 +43,9 @@ Use explanations
 -------------------------------------------
 The recsplain system explains its recommendations so that you can better understand the results.
 
-Therefore, not only do you get recommendations and overall distances, the recsplain provides more granular results to help you better understand the recommendations.
+The explanations tell you the degree of similarity for each feature so that you can better understand the order of the recommendations and the distance for each item.
+
+The explanations are a more granular type of result than the overall distance value.
 
 Get started
 -------------------------------------------

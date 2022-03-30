@@ -15,7 +15,7 @@ Read more about :doc:`what-is-recsplain`, :doc:`how-it-works`, or just :doc:`get
 
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 0
 
    What is recsplain <what-is-recsplain>
    How it works <how-it-works>

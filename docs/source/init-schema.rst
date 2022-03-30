@@ -23,18 +23,21 @@ Here is an example of data to pass to the ``init_schema`` method to configure th
 .. literalinclude:: init_schema_data.json
   :language: JSON
 
-.. note::
-    The example is what you send in a POST body to the `init_schema` server route or pass as an argument to the `init_schema` method.
-
 Here is an example of how to call the ``init_schema`` method with the example data above.
 
 .. literalinclude:: init_schema_example.py
   :language: python
 
+.. note::
+   The example sends the data as an argument to the method. If you are using the system as a web server, send the data in the body of a POST request instead.
+
 Here is an example of a response from ``init_schema``.
 
 .. literalinclude:: init_schema_response.json
   :language: JSON
+
+
+Read below to learn more about the inputs and outputs.
 
 Inputs
 ----------------

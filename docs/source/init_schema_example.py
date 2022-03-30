@@ -1,4 +1,4 @@
-import recssplain as rx
+import recsplain as rx
 
 config_data = {
   "filters": [{ "field": "country", "values": ["US", "EU"] }],
