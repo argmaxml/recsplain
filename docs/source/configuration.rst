@@ -22,13 +22,18 @@ The ``init_schema`` method requires the following inputs:
 - ``encoders``
 - ``metric``
 
-Here is an example of data to pass to the `init_schema` method to configure the system.
+Here is an example of data to pass to the ``init_schema`` method to configure the system.
 
-.. literalinclude:: init_schema_example.json
+.. literalinclude:: init_schema_data.json
   :language: JSON
 
 .. note::
     The example is what you send in a POST body to the `init_schema` server route or pass as an argument to the `init_schema` method.
+
+Here is an example of how to call the ``init_schema`` method with the example data above:
+
+.. literalinclude:: init_schema_example.py
+  :language: python
 
 Filters
 ****************

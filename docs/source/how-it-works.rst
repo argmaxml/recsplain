@@ -1,20 +1,20 @@
 How it works
 ========================
 
-The recsplain system is a Python package  to make recommendations based on item or user.
+Using the recsplain system is straightforward and does not require you to know any machine learning or advanced math to use it.
 
-It is easy to install, configure, and index your items. 
+Rather, you just need to install the recsplain Python package into your project, configure the system, and index your items.
+
+After setup, you can search your indexed items by item or user to find similar items.
 
 .. note::
    You can use it as a webserver or with Python bindings to call the methods in your code.
-
-You can search your indexed items by item or user to find similar items.
 
 When searching by item, the system takes the item features for each item and creates a numerical vector representing the item. 
 
 The system compares the vector for your search item to each item vector for the items you indexed to calculate the distance between the search item vector and each database item vector.
 
-When searching by user, the system creates a numerical vector representing the user as an item vector based on the user's history with the items to calculate the distance between the search user vector and each database item vector.
+When searching by user, the system creates a numerical vector representing the user as an item vector based on the user's history with the items to calculate the distance between the user's item vector and each database item vector.
 
 The smaller the distance between vectors, the more similar they are.
 
@@ -54,9 +54,6 @@ Similarity check
 
 First, customize how the system organizes and compares the items in your database. Simply send your configuration data to the system.
 
-.. note::
-   If you are using recsplain as a web server, you send the data in the body of a POST request. If you are using it with Python bindings, you call the configuration method and pass your configuration data as an argument.
-
 The configuation data is comprised of your filters, encoders, and metric.
 
 Filters are hard filters. Use them to control which items are checked for similarity each time you run an item or user query.
@@ -75,9 +72,6 @@ Data Index
 Second, customize the data by indexing data from your database. The recsplain makes it easy to index the items from your database that you want to include in the recommendation engine.
 
 This way you can make recommendations based on your actual data.
-
-.. note::
-   If you are using recsplain as a web server, you send the item data in the body of a POST request. If you are using it with Python bindings, call the indexing method and pass your item data as an argument.
 
 .. note::
    Index only the data that you want to include as possible recommendations.
@@ -104,16 +98,11 @@ The user data consists of a user id and an item history, like a purchase history
 Understand results
 ------------------------
 
-Each time you search by item or user, the system recommends items by comparing item features to see how similiar the features are to one another.
-
-The system returns items it deems similar to the search item or user, the degree of similar of each result, and optional explanations for each item in the results.
+Each time you search by item or user, the system returns items it deems similar to the search item or user, the degree of similar of each result, and optional explanations for each item in the results.
 
 The system returns the items in an array ordered by most to least similar. The first item in the array is the item that is most similar and the last item in the array is the least similar.
 
-The degree of similarity is measured using the distance between the items where the distance is measured based on vector representations of the items.
-
-.. note::
-   A vector is . . .
+The degree of similarity is measured using the distance between the indexed item vectors and the vector for the search item or user.
 
 When searching by item, similarity consists of comparing the search item vector to the vector for each item in the database.
 

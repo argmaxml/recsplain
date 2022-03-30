@@ -14,13 +14,13 @@ Install the recsplain system from PyPI using ``pip``.
 After you install the package, use it by either:
 
 - running a server to call the functions from the rest API or 
-- by importing into your code using Python bindings.
+- by importing into your code using Python bindings
 
 
 Run Server
 ----------------
 
-To use the system as a web server, enter the following command in your terminal to start the recsplain web server.
+To use the system as a web server, enter the following command in your terminal.
 
 .. code::
     python -m recsplain
