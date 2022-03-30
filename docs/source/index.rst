@@ -6,7 +6,7 @@
 The recsplain system
 =====================
 
-The recsplain system is a recommendation engine that uses AI to compare and recommend items based on feature similarity.
+The recsplain system is a recommendation engine that uses machine learning to compare and recommend items based on feature similarity.
 
 Read more about :doc:`what-is-recsplain`, :doc:`how-it-works`, or just :doc:`get-started`!
 

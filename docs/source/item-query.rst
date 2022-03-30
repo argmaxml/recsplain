@@ -17,7 +17,7 @@ Example
 
 Here is an example of data to pass to the ``query`` method.
 
-.. literalinclude:: item_query.json
+.. literalinclude:: item_query_data.json
   :language: JSON
 
 Here is an example of how to call the ``query`` method with the example data above.
@@ -82,7 +82,7 @@ The ``query`` method returns an object containing:
 ids
 ***************
 
-The ids are the item recommendations and are ordered by index position from most to least similar.
+The ids are the item recommendations and are ordered by index position from most to least similar to the search input.
 
 The item at index position 0 is the most similar item and the item in the last index position is the least similar. 
 
@@ -97,7 +97,7 @@ The distance values tell you how similar each result is to the search item.
 .. note::
   The index positions of the distances correspond to the index positions of the ids.
 
-The lower the distance between two vectors, the more similar the items are to one another.
+The smaller the distance between two vectors, the more similar the items are to one another.
 
 The distance is an overall similarity value based on comparing the vector for one indexed item to the vector for the search item. 
 
@@ -115,5 +115,6 @@ The explanations show why. It is because A has a smaller distance for category t
 
 Plus, the encoder configurations weighted category twice as important as price. 
 
-Because A beats B on category by 4x more than B beats A on price and because category is greater weight, A has two reasons to be more similar to the search than B has.
+.. note::
+  Because A beats B on category by 4x more than B beats A on price and because category is greater weight, A has two reasons to be more similar to the search than B has.
 

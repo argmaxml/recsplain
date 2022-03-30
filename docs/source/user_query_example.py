@@ -9,4 +9,4 @@ user_query_data = {
   "explain": 1
 }
 
-rx.query(user_query_data)
+rx.user_query(user_query_data)

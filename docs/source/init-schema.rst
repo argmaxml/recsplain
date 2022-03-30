@@ -85,7 +85,9 @@ Here is what each does:
 
 Unlke the filters, the encoders are not hard filters and therefore do not play a role in creating the partitions.
 
-Instead, the encoders are used when the user searches by item or user to find similar items. They are soft filters that dictate how the system checks for similarity.
+Instead, the encoders are used when the user searches by item or user to find similar items. 
+
+They are soft filters that dictate how the system checks for similarity.
 
 The encoder fields should be a field that the items in your database have or could have. 
 
@@ -104,17 +106,7 @@ The weight tells the system the relative importance of each feature in the encod
 Metric
 *******************
 
-The metric sets the upper-bound for what to system should consider as within the acceptable limit for similarity. 
-
-The value for the metric is a number that represents the similarity between items or how likely a user is to prefer an item.
-
-.. note::
-   The system uses the distance between vectors to make recommendations based on similarity. So technically the metric is a number that represents acceptable distance. More on vectors below.
-
-Start with a number like 10 or 12 and then fine-tune it based on your data and users. 
-
-.. note::
-   The lower the number for metric, the more similar the items need to be for the system to consider them similar items.
+COMING SOON
 
 Outputs
 ----------------
@@ -128,7 +120,9 @@ The ``init_schema`` method returns an object containing:
 Partitions
 ****************
 
-The ``partitions`` value is the number of partitions the system made based on your configuration. When you index items, the items are added to the partitions only if the item meets the filter criteria.
+The ``partitions`` value is the number of partitions the system made based on your configuration. 
+
+When you index items, the items are added to the partitions only if the item meets the filter criteria.
 
 .. note::
     A partition is an instance of the similarity server. 
@@ -139,15 +133,15 @@ As explained above, the number of partitions is based on the number of values ``
 Feature Sizes
 ****************
 
-Each encoder has a feature size. The feature size is the number of features for each encoder, plus one. 
+Each encoder has a feature size. 
 
-The plus one is to account for unknown feature values.
+The feature size is the number of features for each encoder, plus one. The plus one is to account for unknown feature values.
 
 In the example above, the price encoder has three values: ``["low", "mid", "high"]``.
 
 Its feature size, therefore, is 4 because of its three values and the possibility for unknown values.
 
-Similarly, the category feature size is 3 because of its two values and the possibility for more.
+Similarly, the category feature size is 3 because of its two values and the possibility for an unknown.
 
 Vector Size
 ****************

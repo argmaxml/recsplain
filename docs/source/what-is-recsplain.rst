@@ -49,4 +49,4 @@ The explanations are a more granular type of result than the overall distance va
 
 Get started
 -------------------------------------------
-Read about :doc:`how-it-works<how it works>` or just :doc:`get-started<get started>`!
+Read about :doc:`how it works<how-it-works>` or just :doc:`get started<get-started>`!

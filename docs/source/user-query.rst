@@ -55,35 +55,36 @@ The ``user_query`` method requires the following inputs:
 k
 ***************
 
-The `k` value is the number of items you want the system to return as recommendations. 
+The ``k`` value is the number of items you want the system to return as recommendations. 
 
 item history
 ***************
 
-The `item history` is an array of item ids that the user has previous history with.
+The ``item history`` is an array of item ids that the user has previous history with.
+
+The system uses the item history to convert a user to an item vector.
 
 .. note::
    A common example is an array of ids for items the user previously purchased. In the example code, this user previously bought item 1 one time and item 3 twice.
 
-The system uses the features of the items in the array to create an item vector that represents the user based on the features of those items. The system knows the features of each item in the array because you tell the system the item features when you index the items.
+The system uses the features of the items in the array to create an item vector that represents the user based on the features of those items. 
+
+The system knows the features of each item in the array because you tell the system the item features when you index the items.
 
 .. note::
    The system compare the user's item vector to the item vectors for the indexed items. In other words, if a customer bought three bananas, an apple, and a carrot, their user vector represents a combination of the features from three bananas, an apple, and a carrot. 
 
-The system uses the item history to convert a user to an item vector.
-
-The recsplain system compares the characteristics of the user's item vector to the item vector for each indexed item to calculate the distance.
+The recsplain system compares the user's item vector to the item vector for each indexed item to calculate distance.
 
 data
 ***************
 
-The data is an object containing fields and values about the user your are searching for.
+The data is an object containing fields and values about the user your are searching for. Each user data field should correspond to a field in your indexed items.
 
 .. note::
    User data is most commonly used as hard filters. For instance, in the example in these docs, the system will only recommend US items to the user, not EU items.
    
 .. note::   
-   Each user data field should correspond to a field in your indexed items.
 
 explain
 ***************
@@ -110,7 +111,7 @@ The ``user_query`` method returns an object containing:
 ids
 ***************
 
-The ids are the item recommendations and are ordered by index position from most to least similar.
+The ids are the item recommendations and are ordered by index position from most to least similar to the user's item vector.
 
 The item at index position 0 is the item the user most likely prefers and the item in the last index position is the item the user least likely prefers. 
 
@@ -122,8 +123,10 @@ distances
 
 The distance values tell you how likely the user is to prefer the item.
 
+The index positions of the ids correspond to the index positions of the distances. 
+
 .. note::
-  The index positions of the ids correspond to the index positions of the distances. In the example, A is the top recommendation and has a distance of 0.888898987902 from the search item. B is the second next best recommendation and has a distance of 3.555675839384 from the search item.
+  In the example, A is the top recommendation and has a distance of 0.888898987902 from the search item. B is the next best recommendation and has a distance of 3.555675839384 from the search item.
 
 The smaller the distance for an item, the more likely the user is to prefer the item.
 

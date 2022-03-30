@@ -1,9 +1,9 @@
 Index
 ===================
 
-After installing and configuring the package, add items from your database to the recsplain system so you have items in the system to check for similarity.
+After installing and configuring the package, add items to the recsplain system so you have items in the system to check for similarity when you search.
 
-To enter your configuration settings, use the ``index`` method. 
+To add items to the system, use the ``index`` method. 
 
 .. note::
    If you do not index items, when you search there will be nothing to check the search against for similarity.
@@ -65,8 +65,7 @@ The ``index`` method returns the number of affected partitions.
 
 A partition is an affected partition if the system added the item to the partition.
 
-.. note::
-   An item is added only to the partitions that it matches. An item matches a partition if the item has the feature value corresponding to the partition filter field.
+An item is added only to the partitions that it matches. An item matches a partition if the item has the feature value corresponding to the partition filter field.
 
 .. note:: 
    Using the example from the :doc:`configuration<init-schema>` page, indexing an item sold only in the US would affect one partition, whereas indexing an item sold in both the US and EU would affect two partitions.
