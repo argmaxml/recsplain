@@ -1,9 +1,12 @@
 from distutils.core import setup
 
-__version__="0.0.1"
+__package__= "recsplain"
+__version__=""
+with open(__package__+"/version.py", 'r') as f:
+    exec(f.read())
 setup(
-    name="recsplain",
-    packages=["recsplain"],
+    name=__package__,
+    packages=[__package__],
     install_requires=[
         "faiss-cpu>=1.7.1.post3",
         "hnswlib>=0.5.1",
