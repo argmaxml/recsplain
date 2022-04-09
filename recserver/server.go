@@ -107,11 +107,15 @@ func read_npy(npy string) string {
 	return fmt.Sprintf("data = %v\n", mat.Formatted(m, mat.Prefix("       ")))
 }
 
+func encode(schema Schema, query map[string]string) *mat.Dense {
+	return nil
+}
+
 func main() {
 	app := fiber.New()
 	// embeddings:= make(map[string]*mat.Dense)
 	// values:= make(map[string]*mat.Dense)
-
+	schema, partitions := read_schema("schema.json")
 	// GET /api/register
 	app.Get("/npy/*", func(c *fiber.Ctx) error {
 		msg := read_npy(c.Params("*") + ".npy")
@@ -137,14 +141,24 @@ func main() {
 	})
 
 	// GET /john
-	app.Get("/:fname", func(c *fiber.Ctx) error {
-		_, partitions := read_schema(c.Params("fname") + ".json")
-		msg := "Partitions: ={\n"
+	app.Get("/partitions", func(c *fiber.Ctx) error {
+		ret := make([]string, len(partitions))
 		for i, partition := range partitions {
-			msg += fmt.Sprintf("%d: %s\n", i, partition)
+			ret[i] = fmt.Sprintf("%s", partition)
 		}
-		msg += "}\n"
-		return c.SendString(msg)
+		return c.JSON(ret)
+	})
+
+	app.Post("/encode", func(c *fiber.Ctx) error {
+		// Get raw body from POST request
+		c.Body() // user=john
+		var query map[string]string
+
+		if err := c.BodyParser(&query); err != nil {
+			return err
+		}
+		ret := encode(schema, query)
+		return c.JSON(ret)
 	})
 
 	log.Fatal(app.Listen(":3000"))
