@@ -18,19 +18,52 @@ type Schema struct {
 }
 
 type Filter struct {
-	Field  string   `json:"field"`
-	Values []string `json:"values"`
+	Field   string   `json:"field"`
+	Values  []string `json:"values"`
+	Default string   `json:"default"`
 }
 
 type Encoder struct {
-	Field  string   `json:"field"`
-	Values []string `json:"values"`
-	Type   string   `json:"type"`
-	Npy    string   `json:"npy"`
-	Weight float64  `json:"weight"`
+	Field   string   `json:"field"`
+	Values  []string `json:"values"`
+	Default string   `json:"default"`
+	Type    string   `json:"type"`
+	Npy     string   `json:"npy"`
+	Weight  float64  `json:"weight"`
 }
 
-func read_schema(schema_file string) string {
+func itertools_product(a ...[]string) [][]string {
+	c := 1
+	for _, a := range a {
+		c *= len(a)
+	}
+	if c == 0 {
+		return nil
+	}
+	p := make([][]string, c)
+	b := make([]string, c*len(a))
+	n := make([]int, len(a))
+	s := 0
+	for i := range p {
+		e := s + len(a)
+		pi := b[s:e]
+		p[i] = pi
+		s = e
+		for j, n := range n {
+			pi[j] = a[j][n]
+		}
+		for j := len(n) - 1; j >= 0; j-- {
+			n[j]++
+			if n[j] < len(a[j]) {
+				break
+			}
+			n[j] = 0
+		}
+	}
+	return p
+}
+
+func read_schema(schema_file string) (Schema, [][]string) {
 	jsonFile, err := os.Open(schema_file)
 	if err != nil {
 		fmt.Println(err)
@@ -42,11 +75,12 @@ func read_schema(schema_file string) string {
 
 	json.Unmarshal(byteValue, &schema)
 
-	ret := ""
+	values := make([][]string, len(schema.Filters))
 	for i := 0; i < len(schema.Filters); i++ {
-		ret += fmt.Sprintf("Filter: %s\n", schema.Filters[i].Field)
+		values[i] = schema.Filters[i].Values
 	}
-	return ret
+	partitions := itertools_product(values...)
+	return schema, partitions
 }
 
 func read_npy(npy string) string {
@@ -75,6 +109,8 @@ func read_npy(npy string) string {
 
 func main() {
 	app := fiber.New()
+	// embeddings:= make(map[string]*mat.Dense)
+	// values:= make(map[string]*mat.Dense)
 
 	// GET /api/register
 	app.Get("/npy/*", func(c *fiber.Ctx) error {
@@ -102,7 +138,12 @@ func main() {
 
 	// GET /john
 	app.Get("/:fname", func(c *fiber.Ctx) error {
-		msg := read_schema(c.Params("fname") + ".json")
+		_, partitions := read_schema(c.Params("fname") + ".json")
+		msg := "Partitions: ={\n"
+		for i, partition := range partitions {
+			msg += fmt.Sprintf("%d: %s\n", i, partition)
+		}
+		msg += "}\n"
 		return c.SendString(msg)
 	})
 
