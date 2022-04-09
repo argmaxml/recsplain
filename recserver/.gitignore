@@ -1,4 +1,5 @@
 go.sum
 *.npy
+__debug_bin
 schema.json
 test.py

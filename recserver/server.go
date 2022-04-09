@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html"
 	"github.com/sbinet/npyio"
 	"gonum.org/v1/gonum/mat"
 )
@@ -112,7 +113,9 @@ func encode(schema Schema, query map[string]string) *mat.Dense {
 }
 
 func main() {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		Views: html.New("./views", ".html"),
+	})
 	// embeddings:= make(map[string]*mat.Dense)
 	// values:= make(map[string]*mat.Dense)
 	schema, partitions := read_schema("schema.json")
@@ -159,6 +162,13 @@ func main() {
 		}
 		ret := encode(schema, query)
 		return c.JSON(ret)
+	})
+
+	app.Get("/", func(c *fiber.Ctx) error {
+		// Render index template
+		return c.Render("index", fiber.Map{
+			"Headline": "Recsplain",
+		})
 	})
 
 	log.Fatal(app.Listen(":3000"))
