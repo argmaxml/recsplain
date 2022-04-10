@@ -214,8 +214,8 @@ class StrictOneHotEncoder(CachingEncoder):
         return vec
 
 class OrdinalEncoder(OneHotEncoder):
-    def __init__(self, column, column_weight, values, window):
-        super().__init__(column = column, column_weight=column_weight, values=values, window = window)
+    def __init__(self, column, column_weight, values, window, **kwargs):
+        super().__init__(column = column, column_weight=column_weight, values=values, window = window **kwargs))
         self.window = window
         self.nonzero_elements=len(window)
 
@@ -256,8 +256,8 @@ class BinEncoder(CachingEncoder):
 
 
 class BinOrdinalEncoder(BinEncoder):
-    def __init__(self, column, column_weight, values, window):
-        super().__init__(column = column, column_weight=column_weight, values=values, window = window)
+    def __init__(self, column, column_weight, values, window, **kwargs):
+        super().__init__(column = column, column_weight=column_weight, values=values, window = window, **kwargs)
         self.window = window
         self.nonzero_elements=len(window)
 
@@ -358,9 +358,9 @@ class JSONEncoder(CachingEncoder):
         return vec
 
 class QwakEncoder(BaseEncoder):
-    def __init__(self, column, column_weight, environment, length, entity_name, api_key=None):
+    def __init__(self, column, column_weight, environment, length, entity_name, api_key=None,**kwargs):
         super().__init__(column = column, column_weight=column_weight, length=length,
-            entity_name=entity_name, environment=environment)
+            entity_name=entity_name, environment=environment,**kwargs)
         if api_key is None:
             api_key = os.environ.get("QWAK_API")
         self.init_access_token(api_key)
