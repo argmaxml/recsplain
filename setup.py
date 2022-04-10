@@ -2,8 +2,11 @@ from distutils.core import setup
 
 __package__= "recsplain"
 __version__=""
-with open(__package__+"/version.py", 'r') as f:
-    exec(f.read())
+with open(__package__+"/__init__.py", 'r') as f:
+    for line in f:
+        if line.startswith("__version__"):
+            exec(line)
+            break
 setup(
     name=__package__,
     packages=[__package__],
