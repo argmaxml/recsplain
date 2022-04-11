@@ -84,7 +84,7 @@ func read_schema(schema_file string) (Schema, [][]string) {
 	return schema, partitions
 }
 
-func read_npy(npy string) string {
+func read_npy(npy string) *mat.Dense {
 	f, err := os.Open(npy)
 	if err != nil {
 		log.Fatal(err)
@@ -105,23 +105,56 @@ func read_npy(npy string) string {
 	}
 
 	m := mat.NewDense(shape[0], shape[1], raw)
-	return fmt.Sprintf("data = %v\n", mat.Formatted(m, mat.Prefix("       ")))
+	return m
 }
 
-func encode(schema Schema, query map[string]string) *mat.Dense {
-	return nil
+func index_of(a []string, x string) int {
+	for i, n := range a {
+		if n == x {
+			return i
+		}
+	}
+	return -1
+}
+
+func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]string) []float64 {
+	vectors := make([]*mat.Dense, len(schema.Encoders))
+	result := make([]float64, 0)
+	for i := 0; i < len(schema.Encoders); i++ {
+		val, found := query[schema.Encoders[i].Field]
+		if !found {
+			val = schema.Encoders[i].Default
+		}
+		emb_matrix := embeddings[schema.Encoders[i].Field]
+		row_index := index_of(schema.Encoders[i].Values, val)
+		_, emb_size := emb_matrix.Dims()
+		raw_vector := mat.Row(nil, row_index, emb_matrix)
+		for j := 0; j < emb_size; j++ {
+			raw_vector[j] *= schema.Encoders[i].Weight
+		}
+		result = append(result, raw_vector...)
+		vectors[i] = mat.NewDense(1, emb_size, raw_vector)
+
+		//Concatenate all vectors into a single vector
+
+	}
+	return result
 }
 
 func main() {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
-	// embeddings:= make(map[string]*mat.Dense)
-	// values:= make(map[string]*mat.Dense)
+	embeddings := make(map[string]*mat.Dense)
+	// values:= make(map[string][]string)
 	schema, partitions := read_schema("schema.json")
+	for i := 0; i < len(schema.Encoders); i++ {
+		embeddings[schema.Encoders[i].Npy] = read_npy(schema.Encoders[i].Npy)
+	}
 	// GET /api/register
 	app.Get("/npy/*", func(c *fiber.Ctx) error {
-		msg := read_npy(c.Params("*") + ".npy")
+		m := read_npy(c.Params("*") + ".npy")
+		msg := fmt.Sprintf("data = %v\n", mat.Formatted(m, mat.Prefix("       ")))
 		return c.SendString(msg)
 	})
 
@@ -154,13 +187,14 @@ func main() {
 
 	app.Post("/encode", func(c *fiber.Ctx) error {
 		// Get raw body from POST request
-		c.Body() // user=john
 		var query map[string]string
+		// query := make(map[string]string)
 
-		if err := c.BodyParser(&query); err != nil {
-			return err
-		}
-		ret := encode(schema, query)
+		json.Unmarshal(c.Body(), &query)
+		// if err := c.BodyParser(&query); err != nil {
+		// 	return err
+		// }
+		ret := encode(schema, embeddings, query)
 		return c.JSON(ret)
 	})
 
