@@ -149,7 +149,7 @@ func main() {
 	// values:= make(map[string][]string)
 	schema, partitions := read_schema("schema.json")
 	for i := 0; i < len(schema.Encoders); i++ {
-		embeddings[schema.Encoders[i].Npy] = read_npy(schema.Encoders[i].Npy)
+		embeddings[schema.Encoders[i].Field] = read_npy(schema.Encoders[i].Npy)
 	}
 	// GET /api/register
 	app.Get("/npy/*", func(c *fiber.Ctx) error {
@@ -188,8 +188,6 @@ func main() {
 	app.Post("/encode", func(c *fiber.Ctx) error {
 		// Get raw body from POST request
 		var query map[string]string
-		// query := make(map[string]string)
-
 		json.Unmarshal(c.Body(), &query)
 		// if err := c.BodyParser(&query); err != nil {
 		// 	return err
