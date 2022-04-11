@@ -127,6 +127,9 @@ func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]st
 		}
 		emb_matrix := embeddings[schema.Encoders[i].Field]
 		row_index := index_of(schema.Encoders[i].Values, val)
+		if row_index == -1 {
+			row_index = index_of(schema.Encoders[i].Values, schema.Encoders[i].Default)
+		}
 		_, emb_size := emb_matrix.Dims()
 		raw_vector := mat.Row(nil, row_index, emb_matrix)
 		for j := 0; j < emb_size; j++ {
