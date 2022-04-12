@@ -1,4 +1,4 @@
-import json, itertools, collections, sys
+import json, itertools, collections, sys, os
 from operator import itemgetter as at
 import numpy as np
 from pathlib import Path
@@ -163,14 +163,17 @@ class BaseStrategy:
 
 
     def save_model(self, model_name):
-        (self.model_dir/model_name).mkdir(parents=True, exist_ok=True)
-        with (self.model_dir/model_name/"index_labels.json").open('w') as f:
+        model_dir = (self.model_dir/model_name)
+        if os.sep in model_name:
+            model_dir = Path(model_name)
+        model_dir.mkdir(parents=True, exist_ok=True)
+        with (model_dir/"index_labels.json").open('w') as f:
             json.dump(self.index_labels, f)
-        with (self.model_dir/model_name/"schema.json").open('w') as f:
+        with (model_dir/"schema.json").open('w') as f:
             json.dump(self.schema.to_dict(), f)
         saved=0
         for i,p in enumerate(self.partitions):
-            fname = str(self.model_dir/model_name/str(i))
+            fname = str(model_dir/str(i))
             try:
                 p.save_index(fname)
                 saved+=1
@@ -179,16 +182,19 @@ class BaseStrategy:
         return {"status": "OK", "saved_indices": saved, "path": str(self.model_dir/model_name)}
 
     def load_model(self, model_name):
-        with (self.model_dir/model_name/"schema.json").open('r') as f:
+        model_dir = (self.model_dir/model_name)
+        if os.sep in model_name:
+            model_dir = Path(model_name)
+        with (model_dir/"schema.json").open('r') as f:
             schema_dict=json.load(f)
         self.schema = PartitionSchema(**schema_dict)
         self.partitions = [self.IndexEngine(self.schema.metric, self.schema.dim, **self.engine_params) for _ in self.schema.partitions]
-        (self.model_dir/model_name).mkdir(parents=True, exist_ok=True)
-        with (self.model_dir/model_name/"index_labels.json").open('r') as f:
+        model_dir.mkdir(parents=True, exist_ok=True)
+        with (model_dir/"index_labels.json").open('r') as f:
             self.index_labels=json.load(f)
         loaded = 0
         for i,p in enumerate(self.partitions):
-            fname = str(self.model_dir/model_name/str(i))
+            fname = str(model_dir/str(i))
             try:
                 p.load_index(fname)
                 loaded+=1
