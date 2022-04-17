@@ -3,7 +3,7 @@ module recserver
 go 1.15
 
 require (
-	github.com/DataIntelligenceCrew/go-faiss v0.2.0 // indirect
+	github.com/DataIntelligenceCrew/go-faiss v0.2.0
 	github.com/gofiber/fiber/v2 v2.31.0
 	github.com/gofiber/template v1.6.26
 	github.com/klauspost/compress v1.15.1 // indirect

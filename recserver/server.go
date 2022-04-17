@@ -6,7 +6,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 
+	"github.com/DataIntelligenceCrew/go-faiss"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
 	"github.com/sbinet/npyio"
@@ -84,6 +86,20 @@ func read_schema(schema_file string) (Schema, [][]string) {
 	return schema, partitions
 }
 
+func read_index_labels(in_file string) []string {
+	jsonFile, err := os.Open(in_file)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer jsonFile.Close()
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	var index_labels []string
+
+	json.Unmarshal(byteValue, &index_labels)
+	return index_labels
+}
+
 func read_npy(npy string) *mat.Dense {
 	f, err := os.Open(npy)
 	if err != nil {
@@ -144,16 +160,11 @@ func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]st
 	return result
 }
 
-func main() {
+func start_server(embeddings map[string]*mat.Dense, partitions [][]string, schema Schema, index_labels []string) {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
-	embeddings := make(map[string]*mat.Dense)
-	// values:= make(map[string][]string)
-	schema, partitions := read_schema("schema.json")
-	for i := 0; i < len(schema.Encoders); i++ {
-		embeddings[schema.Encoders[i].Field] = read_npy(schema.Encoders[i].Npy)
-	}
+
 	// GET /api/register
 	app.Get("/npy/*", func(c *fiber.Ctx) error {
 		m := read_npy(c.Params("*") + ".npy")
@@ -179,13 +190,16 @@ func main() {
 		return c.SendString(msg) // => 👴 john is 75 years old
 	})
 
-	// GET /john
 	app.Get("/partitions", func(c *fiber.Ctx) error {
 		ret := make([]string, len(partitions))
 		for i, partition := range partitions {
 			ret[i] = fmt.Sprintf("%s", partition)
 		}
 		return c.JSON(ret)
+	})
+
+	app.Get("/labels", func(c *fiber.Ctx) error {
+		return c.JSON(index_labels)
 	})
 
 	app.Post("/encode", func(c *fiber.Ctx) error {
@@ -207,4 +221,28 @@ func main() {
 	})
 
 	log.Fatal(app.Listen(":3000"))
+}
+
+func main() {
+	base_dir := "/home/ugoren/TRecs/models/boom/"
+	// base_dir:="."
+	if len(os.Args) > 1 {
+		base_dir = os.Args[1]
+	}
+	index_labels := read_index_labels(base_dir + "/index_labels.json")
+	embeddings := make(map[string]*mat.Dense)
+	// values:= make(map[string][]string)
+	schema, partitions := read_schema(base_dir + "/schema.json")
+	for i := 0; i < len(schema.Encoders); i++ {
+		embeddings[schema.Encoders[i].Field] = read_npy(schema.Encoders[i].Npy)
+	}
+	indices := make(map[int]*faiss.IndexImpl)
+	for i := 0; i < len(partitions); i++ {
+		ind, err := faiss.ReadIndex(base_dir+"/"+strconv.Itoa(i), 0)
+		indices[i] = ind
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	start_server(embeddings, partitions, schema, index_labels)
 }
