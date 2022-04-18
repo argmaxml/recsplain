@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/DataIntelligenceCrew/go-faiss"
 	"github.com/gofiber/fiber/v2"
@@ -133,9 +134,9 @@ func index_of(a []string, x string) int {
 	return -1
 }
 
-func encode(schema Schema, partitions [][]string, embeddings map[string]*mat.Dense, query map[string]string) (int, []float64) {
+func encode(schema Schema, partition_map map[string]int, embeddings map[string]*mat.Dense, query map[string]string) (int, []float64) {
 	vectors := make([]*mat.Dense, len(schema.Encoders))
-	result := make([]float64, 0)
+	encoded := make([]float64, 0)
 	// Concatenate all components to a single vector
 	for i := 0; i < len(schema.Encoders); i++ {
 		val, found := query[schema.Encoders[i].Field]
@@ -152,16 +153,25 @@ func encode(schema Schema, partitions [][]string, embeddings map[string]*mat.Den
 		for j := 0; j < emb_size; j++ {
 			raw_vector[j] *= schema.Encoders[i].Weight
 		}
-		result = append(result, raw_vector...)
+		encoded = append(encoded, raw_vector...)
 		vectors[i] = mat.NewDense(1, emb_size, raw_vector)
 
 	}
 	// Return partition number
-	partition_idx := -1
-	return partition_idx, result
+	filters := make([]string, len(schema.Filters))
+	for i := 0; i < len(schema.Filters); i++ {
+		val, found := query[schema.Filters[i].Field]
+		if !found {
+			val = schema.Filters[i].Default
+		}
+		filters[i] = val
+	}
+	partition_key := strings.Join(filters, "~")
+	partition_idx := partition_map[partition_key]
+	return partition_idx, encoded
 }
 
-func start_server(embeddings map[string]*mat.Dense, partitions [][]string, schema Schema, index_labels []string) {
+func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
@@ -210,8 +220,33 @@ func start_server(embeddings map[string]*mat.Dense, partitions [][]string, schem
 		// if err := c.BodyParser(&query); err != nil {
 		// 	return err
 		// }
-		_, encoded := encode(schema, partitions, embeddings, query)
+		_, encoded := encode(schema, partition_map, embeddings, query)
 		return c.JSON(encoded)
+	})
+
+	app.Post("/query", func(c *fiber.Ctx) error {
+		var query map[string]string
+		json.Unmarshal(c.Body(), &query)
+
+		partition_idx, encoded := encode(schema, partition_map, embeddings, query)
+		encoded32 := make([]float32, len(encoded))
+		//TODO: read k
+		var k int64
+		k = 2
+		for i, f64 := range encoded {
+			encoded32[i] = float32(f64)
+		}
+		_, ids, err := indices[partition_idx].Search(encoded32, k)
+		if err != nil {
+			log.Fatal(err)
+		}
+		retrieved := make([]string, k)
+		for i, id := range ids {
+			//TODO: fix this out of bounds error
+			// retrieved[i] = index_labels[int(id)]
+			retrieved[i] = strconv.Itoa(int(id))
+		}
+		return c.JSON(retrieved)
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -237,13 +272,16 @@ func main() {
 	for i := 0; i < len(schema.Encoders); i++ {
 		embeddings[schema.Encoders[i].Field] = read_npy(schema.Encoders[i].Npy)
 	}
-	indices := make(map[int]*faiss.IndexImpl)
+	partition_map := make(map[string]int)
+	indices := make([]faiss.IndexImpl, len(partitions))
 	for i := 0; i < len(partitions); i++ {
+		key := strings.Join(partitions[i], "~")
+		partition_map[key] = i
 		ind, err := faiss.ReadIndex(base_dir+"/"+strconv.Itoa(i), 0)
-		indices[i] = ind
+		indices[i] = *ind
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-	start_server(embeddings, partitions, schema, index_labels)
+	start_server(indices, embeddings, partitions, partition_map, schema, index_labels)
 }
