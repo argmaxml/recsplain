@@ -1,4 +1,7 @@
 *.npy
 __debug_bin
 schema.json
-test.py
+index_labels.json
+0
+1
+2

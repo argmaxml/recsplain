@@ -133,9 +133,10 @@ func index_of(a []string, x string) int {
 	return -1
 }
 
-func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]string) []float64 {
+func encode(schema Schema, partitions [][]string, embeddings map[string]*mat.Dense, query map[string]string) (int, []float64) {
 	vectors := make([]*mat.Dense, len(schema.Encoders))
 	result := make([]float64, 0)
+	// Concatenate all components to a single vector
 	for i := 0; i < len(schema.Encoders); i++ {
 		val, found := query[schema.Encoders[i].Field]
 		if !found {
@@ -154,10 +155,10 @@ func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]st
 		result = append(result, raw_vector...)
 		vectors[i] = mat.NewDense(1, emb_size, raw_vector)
 
-		//Concatenate all vectors into a single vector
-
 	}
-	return result
+	// Return partition number
+	partition_idx := -1
+	return partition_idx, result
 }
 
 func start_server(embeddings map[string]*mat.Dense, partitions [][]string, schema Schema, index_labels []string) {
@@ -209,8 +210,8 @@ func start_server(embeddings map[string]*mat.Dense, partitions [][]string, schem
 		// if err := c.BodyParser(&query); err != nil {
 		// 	return err
 		// }
-		ret := encode(schema, embeddings, query)
-		return c.JSON(ret)
+		_, encoded := encode(schema, partitions, embeddings, query)
+		return c.JSON(encoded)
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -224,8 +225,8 @@ func start_server(embeddings map[string]*mat.Dense, partitions [][]string, schem
 }
 
 func main() {
-	base_dir := "/home/ugoren/TRecs/models/boom/"
-	// base_dir:="."
+	// base_dir := "/home/ugoren/TRecs/models/boom/"
+	base_dir := "."
 	if len(os.Args) > 1 {
 		base_dir = os.Args[1]
 	}
