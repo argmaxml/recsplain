@@ -70,18 +70,25 @@ function json_submit(event, form) {
         })
         return false;
 }
-
+document.addEventListener("DOMContentLoaded", function(event) {
+    // replace form submission behavior
+    for (let i=0;i<document.forms.length;i++)
+    {
+        const frm=document.forms[i];
+        frm.addEventListener("submit", (e) =>json_submit(e, frm));
+    }
+});
     </script>
 </head>
 <body>
-    <div id="content">
+    <div id="container">
         <div class="row">
             <div class="col-md-12">
                 <h1>{{.Headline}}</h1>
             </div> 
             <div class="col-md-3">
                 <h2>Encode</h2>
-                <form action="/encode" method="POST" onsubmit="json_submit(event,this)">
+                <form action="/encode" method="POST">
                     <div class="form-group">
                         <label for="frm_country">Country</label>
                         <input type="text" name="country" class="form-control" id="frm_country" placeholder="Country">
@@ -95,17 +102,16 @@ function json_submit(event, form) {
             </div>
             <div class="col-md-3">
                 <h2>Metadata</h2>
-                <form action="/partitions" method="GET" onsubmit="json_submit(event,this)">
+                <form action="/partitions" method="GET">
                     <button type="submit" class="btn btn-primary">Partitions</button>
                 </form>
-                <form action="/labels" method="GET" onsubmit="json_submit(event,this)">
+                <form action="/labels" method="GET">
                     <button type="submit" class="btn btn-primary">Labels</button>
                 </form>
             </div>
         </div>
         <div class="row">
             <div class="col-md-12 terminal" id="response">
-                
             </div> 
         </div>
     </div>
