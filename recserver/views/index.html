@@ -19,7 +19,8 @@
         }
     </style>
     <script>
-function json_post(form) {
+function json_submit(event, form) {
+    event.preventDefault();
     const output = document.getElementById("response");
     let obj = {};
     const elements = form.querySelectorAll("input, select, textarea");
@@ -31,15 +32,26 @@ function json_post(form) {
             obj[name] = value;
         }
     }
-    console.log(obj);
     let dataReceived = "";
     output.innerHTML = "";
-    fetch(form.action, {
+    let req = null;
+    if (form.method.toLowerCase()=="post")
+    {
+        req = fetch(form.action, {
         method: "POST",
         headers: { "Content-Type": "application/json" , "Accept": "application/json"},
         body: JSON.stringify(obj)
-    })
-        .then(resp => {
+        })
+    }
+    else
+    {
+        const qs = (obj?"?" + (new URLSearchParams(obj)).toString():"");
+        req = fetch(form.action + qs, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" , "Accept": "application/json"}
+        })
+    }
+        req.then(resp => {
             if (resp.status === 200) {
                 return resp.json()
             } else {
@@ -69,7 +81,7 @@ function json_post(form) {
             </div> 
             <div class="col-md-3">
                 <h2>Encode</h2>
-                <form action="/encode" method="POST" onsubmit="event.preventDefault();json_post(this)">
+                <form action="/encode" method="POST" onsubmit="json_submit(event,this)">
                     <div class="form-group">
                         <label for="frm_country">Country</label>
                         <input type="text" name="country" class="form-control" id="frm_country" placeholder="Country">
@@ -77,8 +89,17 @@ function json_post(form) {
                     <div class="form-group">
                         <label for="frm_state">State</label>
                         <input type="text" name="state" class="form-control" id="frm_state" placeholder="State">
-                        </div>
+                    </div>
                     <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+            </div>
+            <div class="col-md-3">
+                <h2>Metadata</h2>
+                <form action="/partitions" method="GET" onsubmit="json_submit(event,this)">
+                    <button type="submit" class="btn btn-primary">Partitions</button>
+                </form>
+                <form action="/labels" method="GET" onsubmit="json_submit(event,this)">
+                    <button type="submit" class="btn btn-primary">Labels</button>
                 </form>
             </div>
         </div>
