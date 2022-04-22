@@ -224,19 +224,20 @@ func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, p
 		return c.JSON(encoded)
 	})
 
-	app.Post("/query", func(c *fiber.Ctx) error {
+	app.Post("/query/:k?", func(c *fiber.Ctx) error {
 		var query map[string]string
 		json.Unmarshal(c.Body(), &query)
 
 		partition_idx, encoded := encode(schema, partition_map, embeddings, query)
 		encoded32 := make([]float32, len(encoded))
-		//TODO: read k
-		var k int64
-		k = 2
+		k, err := strconv.Atoi(c.Params("k"))
+		if err != nil {
+			k = 2
+		}
 		for i, f64 := range encoded {
 			encoded32[i] = float32(f64)
 		}
-		_, ids, err := indices[partition_idx].Search(encoded32, k)
+		_, ids, err := indices[partition_idx].Search(encoded32, int64(k))
 		if err != nil {
 			log.Fatal(err)
 		}

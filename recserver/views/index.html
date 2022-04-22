@@ -87,6 +87,20 @@ document.addEventListener("DOMContentLoaded", function(event) {
                 <h1>{{.Headline}}</h1>
             </div> 
             <div class="col-md-3">
+                <h2>Query</h2>
+                <form action="/query" method="POST">
+                    <div class="form-group">
+                        <label for="frm_country">Country</label>
+                        <input type="text" name="country" class="form-control" id="frm_country" placeholder="Country">
+                    </div>
+                    <div class="form-group">
+                        <label for="frm_state">State</label>
+                        <input type="text" name="state" class="form-control" id="frm_state" placeholder="State">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+            </div>
+            <div class="col-md-3">
                 <h2>Encode</h2>
                 <form action="/encode" method="POST">
                     <div class="form-group">
