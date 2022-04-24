@@ -243,9 +243,7 @@ func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, p
 		}
 		retrieved := make([]string, k)
 		for i, id := range ids {
-			//TODO: fix this out of bounds error
-			// retrieved[i] = index_labels[int(id)]
-			retrieved[i] = strconv.Itoa(int(id))
+			retrieved[i] = index_labels[int(id)]
 		}
 		return c.JSON(retrieved)
 	})
