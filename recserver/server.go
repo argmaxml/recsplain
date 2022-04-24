@@ -175,22 +175,28 @@ func encode(schema Schema, partition_map map[string]int, embeddings map[string]*
 	return partition_idx, encoded32
 }
 
-func l1_componentwise_distance(embeddings map[string]*mat.Dense, v1 []float32, v2 []float32) map[string]float32 {
-	ret := make(map[string]float32)
+func l1_componentwise_distance(embeddings map[string]*mat.Dense, v1 []float32, v2 []float32) (float32, map[string]float32) {
+	breakdown := make(map[string]float32)
+	var total_distance float32
+	total_distance = 0
+	vector_size := 0
 	for field, emb_matrix := range embeddings {
 		_, emb_size := emb_matrix.Dims()
-		ret[field] = 0
+		breakdown[field] = 0
 		for i := 0; i < emb_size; i++ {
 			if v1[i] > v2[i] {
-				ret[field] += (v1[i] - v2[i])
+				breakdown[field] += (v1[i] - v2[i])
 			} else {
-				ret[field] += (v2[i] - v1[i])
+				breakdown[field] += (v2[i] - v1[i])
 			}
+			total_distance += breakdown[field]
 		}
-		ret[field] /= float32(emb_size)
+		breakdown[field] /= float32(emb_size)
+		vector_size += emb_size
 
 	}
-	return ret
+	total_distance /= float32(vector_size)
+	return total_distance, breakdown
 }
 
 func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
