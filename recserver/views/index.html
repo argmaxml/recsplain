@@ -21,6 +21,8 @@
     <script>
 function json_submit(event, form) {
     event.preventDefault();
+    let url=form.action;
+    let pre_url=url;
     const output = document.getElementById("response");
     let obj = {};
     const elements = form.querySelectorAll("input, select, textarea");
@@ -29,7 +31,14 @@ function json_submit(event, form) {
         const value = elements[i].value;
 
         if (name) {
-            obj[name] = value;
+            pre_url=url;
+            url=url.replace("%7B"+name+"%7D", ""+value).replace("{"+name+"}", ""+value)
+            console.log(url)
+            if (pre_url==url)
+            {
+                // parameter is not in the route and should be in the payload
+                obj[name] = value;
+            } 
         }
     }
     let dataReceived = "";
@@ -37,7 +46,7 @@ function json_submit(event, form) {
     let req = null;
     if (form.method.toLowerCase()=="post")
     {
-        req = fetch(form.action, {
+        req = fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" , "Accept": "application/json"},
         body: JSON.stringify(obj)
@@ -45,12 +54,13 @@ function json_submit(event, form) {
     }
     else
     {
-        const qs = (obj?"?" + (new URLSearchParams(obj)).toString():"");
-        req = fetch(form.action + qs, {
+        url += (obj?"?" + (new URLSearchParams(obj)).toString():"");
+        req = fetch(url, {
         method: "GET",
         headers: { "Content-Type": "application/json" , "Accept": "application/json"}
         })
     }
+    console.log(url);
         req.then(resp => {
             if (resp.status === 200) {
                 return resp.json()
@@ -88,7 +98,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
             </div> 
             <div class="col-md-3">
                 <h2>Query</h2>
-                <form action="/query" method="POST">
+                <form action="/query/{k}" method="POST">
                     <div class="form-group">
                         <label for="frm_country">Country</label>
                         <input type="text" name="country" class="form-control" id="frm_country" placeholder="Country">
@@ -96,6 +106,10 @@ document.addEventListener("DOMContentLoaded", function(event) {
                     <div class="form-group">
                         <label for="frm_state">State</label>
                         <input type="text" name="state" class="form-control" id="frm_state" placeholder="State">
+                    </div>
+                    <div class="form-group">
+                        <label for="frm_k">k</label>
+                        <input type="text" name="k" class="form-control" id="frm_k" placeholder="k" value="2">
                     </div>
                     <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
