@@ -135,7 +135,6 @@ func index_of(a []string, x string) int {
 }
 
 func encode(schema Schema, partition_map map[string]int, embeddings map[string]*mat.Dense, query map[string]string) (int, []float64) {
-	vectors := make([]*mat.Dense, len(schema.Encoders))
 	encoded := make([]float64, 0)
 	// Concatenate all components to a single vector
 	for i := 0; i < len(schema.Encoders); i++ {
@@ -145,17 +144,18 @@ func encode(schema Schema, partition_map map[string]int, embeddings map[string]*
 		}
 		emb_matrix := embeddings[schema.Encoders[i].Field]
 		row_index := index_of(schema.Encoders[i].Values, val)
-		if row_index == -1 {
+		if row_index == -1 { // not found, use default
 			row_index = index_of(schema.Encoders[i].Values, schema.Encoders[i].Default)
 		}
 		_, emb_size := emb_matrix.Dims()
-		raw_vector := mat.Row(nil, row_index, emb_matrix)
-		for j := 0; j < emb_size; j++ {
-			raw_vector[j] *= schema.Encoders[i].Weight
+		raw_vector := make([]float64, emb_size)
+		if row_index > -1 {
+			raw_vector = mat.Row(nil, row_index, emb_matrix)
+			for j := 0; j < emb_size; j++ {
+				raw_vector[j] *= schema.Encoders[i].Weight
+			}
 		}
 		encoded = append(encoded, raw_vector...)
-		vectors[i] = mat.NewDense(1, emb_size, raw_vector)
-
 	}
 	// Return partition number
 	filters := make([]string, len(schema.Filters))
