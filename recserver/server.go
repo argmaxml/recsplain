@@ -134,7 +134,7 @@ func index_of(a []string, x string) int {
 	return -1
 }
 
-func encode(schema Schema, partition_map map[string]int, embeddings map[string]*mat.Dense, query map[string]string) (int, []float64) {
+func encode(schema Schema, partition_map map[string]int, embeddings map[string]*mat.Dense, query map[string]string) (int, []float32) {
 	encoded := make([]float64, 0)
 	// Concatenate all components to a single vector
 	for i := 0; i < len(schema.Encoders); i++ {
@@ -168,7 +168,29 @@ func encode(schema Schema, partition_map map[string]int, embeddings map[string]*
 	}
 	partition_key := strings.Join(filters, "~")
 	partition_idx := partition_map[partition_key]
-	return partition_idx, encoded
+	encoded32 := make([]float32, len(encoded))
+	for i, f64 := range encoded {
+		encoded32[i] = float32(f64)
+	}
+	return partition_idx, encoded32
+}
+
+func l1_componentwise_distance(embeddings map[string]*mat.Dense, v1 []float32, v2 []float32) map[string]float32 {
+	ret := make(map[string]float32)
+	for field, emb_matrix := range embeddings {
+		_, emb_size := emb_matrix.Dims()
+		ret[field] = 0
+		for i := 0; i < emb_size; i++ {
+			if v1[i] > v2[i] {
+				ret[field] += (v1[i] - v2[i])
+			} else {
+				ret[field] += (v2[i] - v1[i])
+			}
+		}
+		ret[field] /= float32(emb_size)
+
+	}
+	return ret
 }
 
 func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
@@ -229,15 +251,11 @@ func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, p
 		json.Unmarshal(c.Body(), &query)
 
 		partition_idx, encoded := encode(schema, partition_map, embeddings, query)
-		encoded32 := make([]float32, len(encoded))
 		k, err := strconv.Atoi(c.Params("k"))
 		if err != nil {
 			k = 2
 		}
-		for i, f64 := range encoded {
-			encoded32[i] = float32(f64)
-		}
-		_, ids, err := indices[partition_idx].Search(encoded32, int64(k))
+		_, ids, err := indices[partition_idx].Search(encoded, int64(k))
 		if err != nil {
 			log.Fatal(err)
 		}
