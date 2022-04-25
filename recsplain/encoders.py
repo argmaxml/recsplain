@@ -215,7 +215,7 @@ class StrictOneHotEncoder(CachingEncoder):
 
 class OrdinalEncoder(OneHotEncoder):
     def __init__(self, column, column_weight, values, window, **kwargs):
-        super().__init__(column = column, column_weight=column_weight, values=values, window = window **kwargs))
+        super().__init__(column = column, column_weight=column_weight, values=values, window = window **kwargs)
         self.window = window
         self.nonzero_elements=len(window)
 
