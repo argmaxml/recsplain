@@ -8,7 +8,9 @@ Recsplain System 🦖
 
 The Recsplain System makes recommendations and explains them. 
 
-An Explainable Recommendation Framework
+Install it in your app, use it with your data, and customize it how you want.
+
+Explainable Recommendations
 ---------------------------------------------------------
 
 Here is an example recommendation with explanations. 
@@ -21,7 +23,7 @@ The recommeded items are in the ids array. The ids are ordered by index position
 
 The values in the distance and explanations arrays correspond to the values in the ids array by index position.
 
-How Does It Work? 
+How It Works 
 ---------------------------------------------------------
 
 Recsplain composes feature-vectors and weighs them.
