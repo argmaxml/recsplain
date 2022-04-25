@@ -48,3 +48,6 @@ User Encoders (Optional, just for user2item - see diagram 2)
 
 .. note:: 
    **ArgMaxML** created Recsplain. We are focused on creating software the enables you to integrate recommendation engines into your product to increase customer engagement.
+
+.. toctree::
+   :maxdepth: 1
