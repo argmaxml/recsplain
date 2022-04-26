@@ -6,8 +6,8 @@ After installing the package, configure the system with your filters, encoders, 
 
 The reasons you need to configure the system is so that it knows how to:
 
-- partition your items into separate containers 
-- compare items within the same partition 
+- Partition items into separate containers 
+- Compare items within the same partition 
 
 To enter your configuration settings, use the ``init_schema`` method. 
 
@@ -54,6 +54,9 @@ Filters
 Filters control which items the system checks for similarity each time you run an item or user query.
 
 As the example above demonstrates, each filter is comprised of a field and possible values for the field. The two most common hard filters are location and language.
+
+.. note::
+   The schema needs to include all possible values for each encoder field.
 
 .. note::
    Each field should correspond to a field for the items in your item database and the values to possible values for those fields.
@@ -135,7 +138,7 @@ Feature Sizes
 
 Each encoder has a feature size. 
 
-The feature size is the number of features for each encoder, plus one. The plus one is to account for unknown feature values.
+The feature size is the number of distinct feature values for each encoder, plus one. The plus one is to account for unknown feature values.
 
 In the example above, the price encoder has three values: ``["low", "mid", "high"]``.
 
@@ -148,7 +151,7 @@ Vector Size
 
 The vector size is the sum of the features sizes. 
 
-In the example above, the vector size is 7 because the price encoder has 3 values, the category encoder has 2 values, and each of the encoders has the possibility for an unknown value.
+In the example above, the vector size is 7. Here is why. The the price encoder has 3 values and therefore a feature size of 4. The category encoder has 2 values and therefore a feature size of 3. Therefore, the overall feature size is 7.
 
 Total Items
 ****************

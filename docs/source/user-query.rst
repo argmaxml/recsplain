@@ -6,11 +6,11 @@ After you configure the system and index your items, you can use the system to s
 To search by user, use the ``user_query`` method. 
 
 .. note::
-  To seach by item, see the :doc:`item query<item-query>` option.
+   To seach by item, see the :doc:`item query<item-query>` option.
 
 The ``user_query`` method requires you send data about the user when you call it, and in response it returns items the user likely prefers.
 
-When recommending items based on user search, the recsplain system takes the user's previous history with the items, such as their item purchase history, and checks it against the items in the database for similarity.
+When recommending items based on user search, the Recsplain system takes the user's previous history with the items, such as their item purchase history, and checks it against the items in the database for similarity.
 
 .. note::
    For example, for an online store, the system recommends the items the user is most likely to buy based on how similar the items are to the items the user previously bought.
@@ -74,7 +74,7 @@ The system knows the features of each item in the array because you tell the sys
 .. note::
    The system compare the user's item vector to the item vectors for the indexed items. In other words, if a customer bought three bananas, an apple, and a carrot, their user vector represents a combination of the features from three bananas, an apple, and a carrot. 
 
-The recsplain system compares the user's item vector to the item vector for each indexed item to calculate distance.
+The Recsplain system compares the user's item vector to the item vector for each indexed item to calculate distance.
 
 data
 ***************

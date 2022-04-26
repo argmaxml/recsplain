@@ -1,14 +1,14 @@
 How it works
 ========================
 
-Using the recsplain system is straightforward and does not require you to know any machine learning or advanced math.
+Using the Recsplain system is straightforward and does not require you to know any machine learning or advanced math.
 
-Rather, you just need to install the recsplain Python package into your project, configure the system, and index your items.
+Rather, you just need to install the Recsplain Python package into your project, configure the system, and index your items.
 
 After setup, you can search by item or user to recommend items based on the similarity of your indexed items to the search item or user.
 
 .. note::
-   You can use recsplain as a webserver or with Python bindings to call the methods in your code.
+   You can use Recsplain as a webserver or with Python bindings to call the methods in your code.
 
 When searching by item, the system creates a numerical vector representing the search item based on the search item features. 
 
@@ -44,12 +44,12 @@ Make recommendations in two different ways.
 - search by user for items the user is most likely to prefer based on their history with the items
 
 .. note::
-   Learn more about recsplain by :doc:`exploring<explore>` more about how the system works.
+   Learn more about Recsplain by :doc:`exploring<explore>` more about how the system works.
 
 Custom configuration
 ------------------------
 
-The recsplain system is customizable in several important ways.
+The Recsplain system is customizable in several important ways.
 
 Similarity check
 ************************
@@ -91,7 +91,7 @@ The search item data consists of an id and values for item features that corresp
 The search user data consists of a user id and an item history, like a purchase history, where each item in the history is and id for an indexed item.
 
 .. note::
-   If you are using recsplain as a web server, you send the seach data in the body of a POST request. If you are using it with Python bindings, call the search method and pass your item data as an argument.
+   If you are using Recsplain as a web server, you send the seach data in the body of a POST request. If you are using it with Python bindings, call the search method and pass your item data as an argument.
 
 
 Understand results

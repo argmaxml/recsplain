@@ -1,7 +1,7 @@
 Index
 ===================
 
-After installing and configuring the package, add items to the recsplain system so you have items in the system to check for similarity when you search.
+After installing and configuring the package, add items to the Recsplain system so you have items in the system to check for similarity when you search.
 
 To add items to the system, use the ``index`` method. 
 
@@ -34,6 +34,9 @@ Here is an example of a response from ``index``.
   :language: JSON
 
 Read below to learn more about the inputs and outputs.
+
+.. note::
+   When reusing the index method, you should note that using the same id twice will create duplications in the index.
 
 Inputs
 -------------------

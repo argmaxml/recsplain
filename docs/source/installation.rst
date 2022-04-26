@@ -1,12 +1,12 @@
-Install
+Installation
 ================
 
-Install the recplain system and then use it as a web server or import it into your code and call the methods directly.
+Install the Recplain system and then use it as a web server or import it into your code and call the methods directly.
 
 pip install
 ----------------
 
-Install the recsplain system from PyPI using ``pip``. 
+Install the Recsplain system from PyPI using ``pip``. 
 
 .. code-block:: python
 
@@ -14,8 +14,8 @@ Install the recsplain system from PyPI using ``pip``.
 
 After you install the package, use it by either:
 
-- running a server to call the functions from the rest API or 
-- by importing into your code using Python bindings
+- Running a server to call the functions from the rest API or 
+- By importing into your code using Python bindings
 
 
 Run Server
