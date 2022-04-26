@@ -428,6 +428,10 @@ func main() {
 	partition_map := make(map[string]int)
 	// indices := make([]faiss.IndexImpl, len(partitions))
 	indices := make([]faiss.Index, len(partitions))
+	for i := 0; i < len(partitions); i++ {
+		key := strings.Join(partitions[i], "~")
+		partition_map[key] = i
+	}
 	var partitioned_records map[int][]Record
 
 	LOAD_INDEX := false
@@ -435,8 +439,6 @@ func main() {
 	if LOAD_INDEX {
 		index_labels = read_index_labels(base_dir + "/index_labels.json")
 		for i := 0; i < len(partitions); i++ {
-			key := strings.Join(partitions[i], "~")
-			partition_map[key] = i
 			ind, err := faiss.ReadIndex(base_dir+"/"+strconv.Itoa(i), 0)
 			indices[i] = *ind
 			if err != nil {
