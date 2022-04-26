@@ -70,9 +70,9 @@ function json_submit(event, form) {
             }
         })
         .then(dataJson => {
+            // console.log(dataJson);
             // dataReceived = JSON.parse(dataJson)
-            // console.log(dataReceived);
-            output.innerHTML = dataJson;
+            output.innerHTML = JSON.stringify(dataJson, null, 2).replaceAll("\n", "<br>");
         })
         .catch(err => {
             if (err === "server") return;

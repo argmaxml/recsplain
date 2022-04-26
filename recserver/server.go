@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -54,6 +55,12 @@ type Record struct {
 	Label     string
 	Partition int
 	Values    map[string]string
+}
+
+type Explanation struct {
+	Label     string
+	Distance  float32
+	Breakdown map[string]float32
 }
 
 func itertools_product(a ...[]string) [][]string {
@@ -209,7 +216,7 @@ func partition_number(schema Schema, partition_map map[string]int, query map[str
 	return partition_idx
 }
 
-func l1_componentwise_distance(embeddings map[string]*mat.Dense, v1 []float32, v2 []float32) (float32, map[string]float32) {
+func componentwise_distance(schema Schema, embeddings map[string]*mat.Dense, v1 []float32, v2 []float32) (float32, map[string]float32) {
 	breakdown := make(map[string]float32)
 	var total_distance float32
 	total_distance = 0
@@ -218,23 +225,35 @@ func l1_componentwise_distance(embeddings map[string]*mat.Dense, v1 []float32, v
 		_, emb_size := emb_matrix.Dims()
 		breakdown[field] = 0
 		for i := 0; i < emb_size; i++ {
-			if v1[i] > v2[i] {
-				breakdown[field] += (v1[i] - v2[i])
-			} else {
-				breakdown[field] += (v2[i] - v1[i])
+			if strings.ToLower(schema.Metric) == "l1" {
+				if v1[i] > v2[i] {
+					breakdown[field] += (v1[i] - v2[i])
+				} else {
+					breakdown[field] += (v2[i] - v1[i])
+				}
 			}
+			if strings.ToLower(schema.Metric) == "l2" {
+				breakdown[field] += (v1[i] - v2[i]) * (v1[i] - v2[i])
+			}
+			//TODO: Support InnerProduct
 			total_distance += breakdown[field]
+		}
+		if strings.ToLower(schema.Metric) == "l2" {
+			breakdown[field] = float32(math.Sqrt(float64(breakdown[field])))
 		}
 		breakdown[field] /= float32(emb_size)
 		vector_size += emb_size
 
+	}
+	if strings.ToLower(schema.Metric) == "l2" {
+		total_distance = float32(math.Sqrt(float64(total_distance)))
 	}
 	total_distance /= float32(vector_size)
 	return total_distance, breakdown
 }
 
 // func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
-func start_server(indices []faiss.Index, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
+func start_server(partitioned_records map[int][]Record, indices []faiss.Index, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
@@ -283,9 +302,24 @@ func start_server(indices []faiss.Index, embeddings map[string]*mat.Dense, parti
 		if err != nil {
 			log.Fatal(err)
 		}
-		retrieved := make([]string, k)
+		retrieved := make([]Explanation, k)
 		for i, id := range ids {
-			retrieved[i] = index_labels[int(id)]
+			retrieved[i].Label = index_labels[int(id)]
+			if partitioned_records != nil {
+				var reconstructed []float32
+				reconstructed = nil
+				for _, record := range partitioned_records[partition_idx] {
+					if record.Id == int(id) {
+						reconstructed = encode(schema, embeddings, record.Values)
+						break
+					}
+				}
+				if reconstructed != nil {
+					total_distance, breakdown := componentwise_distance(schema, embeddings, encoded, reconstructed)
+					retrieved[i].Distance = total_distance
+					retrieved[i].Breakdown = breakdown
+				}
+			}
 		}
 		return c.JSON(retrieved)
 	})
@@ -349,6 +383,32 @@ func read_partitioned_csv(schema Schema, partition_map map[string]int, filename 
 	return partition2records, index_labels, nil
 }
 
+func index_partitions(schema Schema, indices []faiss.Index, dim int, embeddings map[string]*mat.Dense, records map[int][]Record) {
+	var wg sync.WaitGroup
+	for partition_idx, partitioned_records := range records {
+		wg.Add(1)
+		go func(i int, recs []Record) {
+			defer wg.Done()
+			if strings.ToLower(schema.Metric) == "ip" {
+				indices[i], _ = faiss.NewIndexFlatIP(dim)
+				// indices[i], _ = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricInnerProduct)
+			}
+			if strings.ToLower(schema.Metric) == "l2" {
+				indices[i], _ = faiss.NewIndexFlatL2(dim)
+				// indices[i], _ = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricL2)
+			}
+			if strings.ToLower(schema.Metric) == "l1" {
+				// indices[i], _ = faiss.NewIndexFlatL1(dim)
+				indices[i], _ = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricL1)
+			}
+			for _, record := range recs {
+				indices[i].Add(encode(schema, embeddings, record.Values))
+			}
+		}(partition_idx, partitioned_records)
+	}
+	wg.Wait()
+}
+
 func main() {
 	// base_dir := "/home/ugoren/TRecs/models/boom/"
 	base_dir := "."
@@ -368,6 +428,7 @@ func main() {
 	partition_map := make(map[string]int)
 	// indices := make([]faiss.IndexImpl, len(partitions))
 	indices := make([]faiss.Index, len(partitions))
+	var partitioned_records map[int][]Record
 
 	LOAD_INDEX := false
 	var index_labels []string
@@ -382,16 +443,15 @@ func main() {
 				log.Fatal(err)
 			}
 		}
+		partitioned_records = nil
 	} else {
-		var records map[int][]Record
 		var err error
-		var wg sync.WaitGroup
 
 		found_item_source := false
 		for _, src := range schema.Sources {
 			if strings.ToLower(src.Record) == "items" {
 				if src.Type == "csv" {
-					records, index_labels, err = read_partitioned_csv(schema, partition_map, src.Path)
+					partitioned_records, index_labels, err = read_partitioned_csv(schema, partition_map, src.Path)
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -403,29 +463,8 @@ func main() {
 			log.Fatal("No item source found")
 		}
 
-		for partition_idx, partitioned_records := range records {
-			wg.Add(1)
-			go func(i int, recs []Record) {
-				defer wg.Done()
-				if strings.ToLower(schema.Metric) == "ip" {
-					indices[i], err = faiss.NewIndexFlatIP(dim)
-					// indices[i], err = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricInnerProduct)
-				}
-				if strings.ToLower(schema.Metric) == "l2" {
-					indices[i], err = faiss.NewIndexFlatL2(dim)
-					// indices[i], err = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricL2)
-				}
-				if strings.ToLower(schema.Metric) == "l1" {
-					// indices[i], err = faiss.NewIndexFlatL1(dim)
-					indices[i], err = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricL1)
-				}
-				for _, record := range recs {
-					indices[i].Add(encode(schema, embeddings, record.Values))
-				}
-			}(partition_idx, partitioned_records)
-		}
-		wg.Wait()
+		index_partitions(schema, indices, dim, embeddings, partitioned_records)
 	}
 
-	start_server(indices, embeddings, partitions, partition_map, schema, index_labels)
+	start_server(partitioned_records, indices, embeddings, partitions, partition_map, schema, index_labels)
 }
