@@ -2,5 +2,6 @@
    :maxdepth: 2
    
    Welcome <index>
-   Get started <get-started>
-   Explore <explore>
+   Get Started <get-started>
+   Saving and Loading Models <saving-and-loading>
+   Spinning Up A Server <spinning-up>

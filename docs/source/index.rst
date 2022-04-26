@@ -17,11 +17,11 @@ Here is an example recommendation with explanations.
 
 The example query is for items in the US that are low in price and in the meat category. 
 
-You can see the request in the image below. 
+You can see the request and response in the image below. 
 
 .. image:: images/explanations.png
 
-The Response body in the image above contains the recommendations and explanations.
+The response body in the image above contains the recommendations and explanations.
 
 The recommendations are in the ids array. The ids are ordered by index position from most to least recommended. The lowest index position is the most recommended.
 
@@ -36,7 +36,7 @@ Recsplain turns items into weighted feature vectors.
 
 The the system compares feature vectors to one another to calculate how similar they are.
 
- .. image:: images/diagram-2.png
+ .. image:: images/diagram-3.png
 
 Recsplain can compare feature vectors using different encoders. The encoder type dictates how items are compared to one another.
 
