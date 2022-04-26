@@ -26,6 +26,7 @@ type Schema struct {
 	Filters  []Filter  `json:"filters"`
 	Encoders []Encoder `json:"encoders"`
 	Sources  []Source  `json:"sources"`
+	Dim      int       `json:"dim"`
 }
 
 type Filter struct {
@@ -285,6 +286,15 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		return c.JSON(index_labels)
 	})
 
+	app.Get("/reload", func(c *fiber.Ctx) error {
+		partitioned_records, index_labels, _ = pull_from_sources(schema, partition_map)
+		for i := 0; i < len(indices); i++ {
+			indices[i].Delete()
+		}
+		index_partitions(schema, indices, embeddings, partitioned_records)
+		return c.SendString("{\"Status\": \"OK\"}")
+	})
+
 	app.Post("/encode", func(c *fiber.Ctx) error {
 		// Get raw body from POST request
 		var query map[string]string
@@ -349,7 +359,7 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 			fields = append(fields, e.Field)
 		}
 		return c.Render("index", fiber.Map{
-			"Headline": "Recsplain",
+			"Headline": "Recsplain API",
 			"Fields":   fields,
 		})
 	})
@@ -406,30 +416,30 @@ func read_partitioned_csv(schema Schema, partition_map map[string]int, filename 
 	return partition2records, index_labels, nil
 }
 
-func index_partitions(schema Schema, indices []faiss.Index, dim int, embeddings map[string]*mat.Dense, records map[int][]Record) {
+func index_partitions(schema Schema, indices []faiss.Index, embeddings map[string]*mat.Dense, records map[int][]Record) {
 	var wg sync.WaitGroup
 	for partition_idx, partitioned_records := range records {
 		wg.Add(1)
 		go func(i int, recs []Record) {
 			defer wg.Done()
 			if strings.ToLower(schema.Metric) == "ip" {
-				// indices[i], _ = faiss.NewIndexFlatIP(dim)
-				indices[i], _ = faiss.IndexFactory(dim, "IVF10,Flat", faiss.MetricInnerProduct)
+				// indices[i], _ = faiss.NewIndexFlatIP(schema.Dim)
+				indices[i], _ = faiss.IndexFactory(schema.Dim, "IVF10,Flat", faiss.MetricInnerProduct)
 			}
 			if strings.ToLower(schema.Metric) == "l2" {
-				// indices[i], _ = faiss.NewIndexFlatL2(dim)
-				indices[i], _ = faiss.IndexFactory(dim, "IVF10,Flat", faiss.MetricL2)
+				// indices[i], _ = faiss.NewIndexFlatL2(schema.Dim)
+				indices[i], _ = faiss.IndexFactory(schema.Dim, "IVF10,Flat", faiss.MetricL2)
 			}
 			if strings.ToLower(schema.Metric) == "l1" {
-				// indices[i], _ = faiss.NewIndexFlatL1(dim)
-				indices[i], _ = faiss.IndexFactory(dim, "IVF10,Flat", faiss.MetricL1)
+				// indices[i], _ = faiss.NewIndexFlatL1(schema.Dim)
+				indices[i], _ = faiss.IndexFactory(schema.Dim, "IVF10,Flat", faiss.MetricL1)
 			}
-			xb := make([]float32, dim*len(recs))
+			xb := make([]float32, schema.Dim*len(recs))
 			ids := make([]int64, len(recs))
 			for i, record := range recs {
 				encoded := encode(schema, embeddings, record.Values)
 				for j, v := range encoded {
-					xb[i*dim+j] = v
+					xb[i*schema.Dim+j] = v
 					ids[i] = int64(record.Id)
 				}
 			}
@@ -440,6 +450,28 @@ func index_partitions(schema Schema, indices []faiss.Index, dim int, embeddings 
 		}(partition_idx, partitioned_records)
 	}
 	wg.Wait()
+}
+
+func pull_from_sources(schema Schema, partition_map map[string]int) (map[int][]Record, []string, error) {
+	var index_labels []string
+	var partitioned_records map[int][]Record
+	var err error
+	found_item_source := false
+	for _, src := range schema.Sources {
+		if strings.ToLower(src.Record) == "items" {
+			if src.Type == "csv" {
+				partitioned_records, index_labels, err = read_partitioned_csv(schema, partition_map, src.Path)
+				if err != nil {
+					return nil, nil, err
+				}
+				found_item_source = true
+			}
+		}
+	}
+	if !found_item_source {
+		return nil, nil, errors.New("No item source found")
+	}
+	return partitioned_records, index_labels, err
 }
 
 func main() {
@@ -457,6 +489,7 @@ func main() {
 		_, emb_size := embeddings[schema.Encoders[i].Field].Dims()
 		dim += emb_size
 	}
+	schema.Dim = dim
 	partition_map := make(map[string]int)
 	// indices := make([]faiss.IndexImpl, len(partitions))
 	indices := make([]faiss.Index, len(partitions))
@@ -480,24 +513,11 @@ func main() {
 		partitioned_records = nil
 	} else {
 		var err error
-
-		found_item_source := false
-		for _, src := range schema.Sources {
-			if strings.ToLower(src.Record) == "items" {
-				if src.Type == "csv" {
-					partitioned_records, index_labels, err = read_partitioned_csv(schema, partition_map, src.Path)
-					if err != nil {
-						log.Fatal(err)
-					}
-					found_item_source = true
-				}
-			}
+		partitioned_records, index_labels, err = pull_from_sources(schema, partition_map)
+		if err != nil {
+			log.Fatal(err)
 		}
-		if !found_item_source {
-			log.Fatal("No item source found")
-		}
-
-		index_partitions(schema, indices, dim, embeddings, partitioned_records)
+		index_partitions(schema, indices, embeddings, partitioned_records)
 	}
 
 	start_server(partitioned_records, indices, embeddings, partitions, partition_map, schema, index_labels)
