@@ -22,6 +22,6 @@ RUN cmake -B build . -DFAISS_ENABLE_GPU=OFF -DBUILD_SHARED_LIBS=ON -DFAISS_ENABL
     && cp build/c_api/libfaiss_c.so /usr/lib
 
 WORKDIR /root
-RUN git clone --branch goencode https://github.com/argmaxml/recsplain
+RUN git clone https://github.com/argmaxml/recsplain
 WORKDIR /root/recsplain/recserver
 RUN go build .
