@@ -50,6 +50,12 @@ type Source struct {
 	Query  string `json:"query"`
 }
 
+type Explanation struct {
+	Label     string             `json:"label"`
+	Distance  float32            `json:"distance"`
+	Breakdown map[string]float32 `json:"breakdown"`
+}
+
 type Record struct {
 	Id        int
 	Label     string
@@ -57,10 +63,10 @@ type Record struct {
 	Values    map[string]string
 }
 
-type Explanation struct {
-	Label     string             `json:"label"`
-	Distance  float32            `json:"distance"`
-	Breakdown map[string]float32 `json:"breakdown"`
+type IDLookup struct {
+	Id        int
+	Partition int
+	RecordId  int
 }
 
 func itertools_product(a ...[]string) [][]string {
@@ -298,13 +304,14 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		if err != nil {
 			k = 2
 		}
-		_, ids, err := indices[partition_idx].Search(encoded, int64(k))
+		distances, ids, err := indices[partition_idx].Search(encoded, int64(k))
 		if err != nil {
 			log.Fatal(err)
 		}
 		retrieved := make([]Explanation, k)
 		for i, id := range ids {
 			retrieved[i].Label = index_labels[int(id)]
+			retrieved[i].Distance = distances[i]
 			if partitioned_records != nil {
 				var reconstructed []float32
 				reconstructed = nil
@@ -325,9 +332,16 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		// Render index template
+		fields := make([]string, 0)
+		for _, e := range schema.Filters {
+			fields = append(fields, e.Field)
+		}
+		for _, e := range schema.Encoders {
+			fields = append(fields, e.Field)
+		}
 		return c.Render("index", fiber.Map{
 			"Headline": "Recsplain",
+			"Fields":   fields,
 		})
 	})
 
@@ -390,20 +404,28 @@ func index_partitions(schema Schema, indices []faiss.Index, dim int, embeddings 
 		go func(i int, recs []Record) {
 			defer wg.Done()
 			if strings.ToLower(schema.Metric) == "ip" {
-				indices[i], _ = faiss.NewIndexFlatIP(dim)
-				// indices[i], _ = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricInnerProduct)
+				// indices[i], _ = faiss.NewIndexFlatIP(dim)
+				indices[i], _ = faiss.IndexFactory(dim, "IVF10,Flat", faiss.MetricInnerProduct)
 			}
 			if strings.ToLower(schema.Metric) == "l2" {
-				indices[i], _ = faiss.NewIndexFlatL2(dim)
-				// indices[i], _ = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricL2)
+				// indices[i], _ = faiss.NewIndexFlatL2(dim)
+				indices[i], _ = faiss.IndexFactory(dim, "IVF10,Flat", faiss.MetricL2)
 			}
 			if strings.ToLower(schema.Metric) == "l1" {
 				// indices[i], _ = faiss.NewIndexFlatL1(dim)
-				indices[i], _ = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricL1)
+				indices[i], _ = faiss.IndexFactory(dim, "IVF10,Flat", faiss.MetricL1)
 			}
-			for _, record := range recs {
-				indices[i].Add(encode(schema, embeddings, record.Values))
+			xb := make([]float32, dim*len(recs))
+			for i, record := range recs {
+				encoded := encode(schema, embeddings, record.Values)
+				for j, v := range encoded {
+					xb[i*dim+j] = v
+				}
 			}
+			indices[i].Train(xb)
+			fmt.Println("IsTrained(", i, ") =", indices[i].IsTrained())
+			indices[i].Add(xb)
+			fmt.Println("IsTrained(", i, ") =", indices[i].IsTrained())
 		}(partition_idx, partitioned_records)
 	}
 	wg.Wait()
