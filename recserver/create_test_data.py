@@ -5,9 +5,11 @@ dim = 5
 embeddings = np.eye(dim)
 
 schema = {
+    "id_col": "id",
+    "metric": "l2",
     "filters":[{"field": "country", "values": ["EU", "US"]}],
     "encoders":[{"field": "state",  "values": ["a", "b", "c", "d", "e"], "type":"np", "weight":1, "npy": "state.npy"}],
-    "sources":[{"record": "items", "type": "csv", "path": "data/items.csv", "id":"id"}],
+    "sources":[{"record": "items", "type": "csv", "path": "test.csv"}],
 }
 index_labels = ["eu1", "eu2", "us3", "us5"]
 
@@ -27,6 +29,14 @@ with open("schema.json", "w") as f:
     json.dump(schema, f, indent=4)
 with open("index_labels.json", "w") as f:
     json.dump(index_labels, f)
+with open("test.csv", 'w') as f:
+    f.write("id,country,state\n")
+    f.write("us1,US,a\n")
+    f.write("us1,US,b\n")
+    f.write("eu1,US,c\n")
+    f.write("eu2,EU,d\n")
+    f.write("us3,US,e\n")
+
 
 faiss.write_index(index_eu, "0")
 faiss.write_index(index_us, "1")

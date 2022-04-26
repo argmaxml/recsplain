@@ -1,13 +1,16 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/DataIntelligenceCrew/go-faiss"
 	"github.com/gofiber/fiber/v2"
@@ -17,6 +20,8 @@ import (
 )
 
 type Schema struct {
+	IdCol    string    `json:"id_col"`
+	Metric   string    `json:"metric"`
 	Filters  []Filter  `json:"filters"`
 	Encoders []Encoder `json:"encoders"`
 	Sources  []Source  `json:"sources"`
@@ -39,10 +44,16 @@ type Encoder struct {
 
 type Source struct {
 	Record string `json:"record"`
-	Id     string `json:"id"`
 	Type   string `json:"type"`
 	Path   string `json:"path"`
 	Query  string `json:"query"`
+}
+
+type Record struct {
+	Id        int
+	Label     string
+	Partition int
+	Values    map[string]string
 }
 
 func itertools_product(a ...[]string) [][]string {
@@ -74,6 +85,14 @@ func itertools_product(a ...[]string) [][]string {
 		}
 	}
 	return p
+}
+
+func zip(a []string, b []string) map[string]string {
+	c := make(map[string]string)
+	for i := 0; i < len(a); i++ {
+		c[a[i]] = b[i]
+	}
+	return c
 }
 
 func read_schema(schema_file string) (Schema, [][]string) {
@@ -177,7 +196,6 @@ func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]st
 
 func partition_number(schema Schema, partition_map map[string]int, query map[string]string) int {
 
-	// Return partition number
 	filters := make([]string, len(schema.Filters))
 	for i := 0; i < len(schema.Filters); i++ {
 		val, found := query[schema.Filters[i].Field]
@@ -215,7 +233,8 @@ func l1_componentwise_distance(embeddings map[string]*mat.Dense, v1 []float32, v
 	return total_distance, breakdown
 }
 
-func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
+// func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
+func start_server(indices []faiss.Index, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
@@ -281,29 +300,132 @@ func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, p
 	log.Fatal(app.Listen(":3000"))
 }
 
+func read_partitioned_csv(schema Schema, partition_map map[string]int, filename string) (map[int][]Record, []string, error) {
+
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	// reader.Comma = '\t'
+	reader.FieldsPerRecord = -1
+	raw_data, err := reader.ReadAll()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	header := raw_data[0]
+	id_num := index_of(header, schema.IdCol)
+	if id_num == -1 {
+		return nil, nil, errors.New("Id column not found")
+	}
+	data := raw_data[1:]
+
+	label2id := make(map[string]int)
+	partition2records := make(map[int][]Record)
+	for _, row := range data {
+		id, found := label2id[row[id_num]]
+		if !found {
+			id = len(label2id)
+			label2id[row[id_num]] = id
+		}
+		query := zip(header, row)
+		partition_idx := partition_number(schema, partition_map, query)
+		partition2records[partition_idx] = append(partition2records[partition_idx], Record{
+			Label:     row[id_num],
+			Id:        id,
+			Values:    query,
+			Partition: partition_idx,
+		})
+
+	}
+	//TODO: Do we need index_labels ? can we use the label2id instead?
+	index_labels := make([]string, len(label2id))
+	for lbl, id := range label2id {
+		index_labels[id] = lbl
+	}
+	return partition2records, index_labels, nil
+}
+
 func main() {
 	// base_dir := "/home/ugoren/TRecs/models/boom/"
 	base_dir := "."
 	if len(os.Args) > 1 {
 		base_dir = os.Args[1]
 	}
-	index_labels := read_index_labels(base_dir + "/index_labels.json")
+
 	embeddings := make(map[string]*mat.Dense)
 	// values:= make(map[string][]string)
 	schema, partitions := read_schema(base_dir + "/schema.json")
+	dim := 0
 	for i := 0; i < len(schema.Encoders); i++ {
 		embeddings[schema.Encoders[i].Field] = read_npy(schema.Encoders[i].Npy)
+		_, emb_size := embeddings[schema.Encoders[i].Field].Dims()
+		dim += emb_size
 	}
 	partition_map := make(map[string]int)
-	indices := make([]faiss.IndexImpl, len(partitions))
-	for i := 0; i < len(partitions); i++ {
-		key := strings.Join(partitions[i], "~")
-		partition_map[key] = i
-		ind, err := faiss.ReadIndex(base_dir+"/"+strconv.Itoa(i), 0)
-		indices[i] = *ind
-		if err != nil {
-			log.Fatal(err)
+	// indices := make([]faiss.IndexImpl, len(partitions))
+	indices := make([]faiss.Index, len(partitions))
+
+	LOAD_INDEX := false
+	var index_labels []string
+	if LOAD_INDEX {
+		index_labels = read_index_labels(base_dir + "/index_labels.json")
+		for i := 0; i < len(partitions); i++ {
+			key := strings.Join(partitions[i], "~")
+			partition_map[key] = i
+			ind, err := faiss.ReadIndex(base_dir+"/"+strconv.Itoa(i), 0)
+			indices[i] = *ind
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
+	} else {
+		var records map[int][]Record
+		var err error
+		var wg sync.WaitGroup
+
+		found_item_source := false
+		for _, src := range schema.Sources {
+			if strings.ToLower(src.Record) == "items" {
+				if src.Type == "csv" {
+					records, index_labels, err = read_partitioned_csv(schema, partition_map, src.Path)
+					if err != nil {
+						log.Fatal(err)
+					}
+					found_item_source = true
+				}
+			}
+		}
+		if !found_item_source {
+			log.Fatal("No item source found")
+		}
+
+		for partition_idx, partitioned_records := range records {
+			wg.Add(1)
+			go func(i int, recs []Record) {
+				defer wg.Done()
+				if strings.ToLower(schema.Metric) == "ip" {
+					indices[i], err = faiss.NewIndexFlatIP(dim)
+					// indices[i], err = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricInnerProduct)
+				}
+				if strings.ToLower(schema.Metric) == "l2" {
+					indices[i], err = faiss.NewIndexFlatL2(dim)
+					// indices[i], err = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricL2)
+				}
+				if strings.ToLower(schema.Metric) == "l1" {
+					// indices[i], err = faiss.NewIndexFlatL1(dim)
+					indices[i], err = faiss.IndexFactory(dim, "IVF100,Flat", faiss.MetricL1)
+				}
+				for _, record := range recs {
+					indices[i].Add(encode(schema, embeddings, record.Values))
+				}
+			}(partition_idx, partitioned_records)
+		}
+		wg.Wait()
 	}
+
 	start_server(indices, embeddings, partitions, partition_map, schema, index_labels)
 }
