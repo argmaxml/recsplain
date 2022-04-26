@@ -308,10 +308,15 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		if err != nil {
 			log.Fatal(err)
 		}
-		retrieved := make([]Explanation, k)
+		retrieved := make([]Explanation, 0)
 		for i, id := range ids {
-			retrieved[i].Label = index_labels[int(id)]
-			retrieved[i].Distance = distances[i]
+			if id == -1 {
+				continue
+			}
+			next_result := Explanation{
+				Label:    index_labels[int(id)],
+				Distance: distances[i],
+			}
 			if partitioned_records != nil {
 				var reconstructed []float32
 				reconstructed = nil
@@ -323,10 +328,11 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 				}
 				if reconstructed != nil {
 					total_distance, breakdown := componentwise_distance(schema, embeddings, encoded, reconstructed)
-					retrieved[i].Distance = total_distance
-					retrieved[i].Breakdown = breakdown
+					next_result.Distance = total_distance
+					next_result.Breakdown = breakdown
 				}
 			}
+			retrieved = append(retrieved, next_result)
 		}
 		return c.JSON(retrieved)
 	})
@@ -416,15 +422,17 @@ func index_partitions(schema Schema, indices []faiss.Index, dim int, embeddings 
 				indices[i], _ = faiss.IndexFactory(dim, "IVF10,Flat", faiss.MetricL1)
 			}
 			xb := make([]float32, dim*len(recs))
+			ids := make([]int64, len(recs))
 			for i, record := range recs {
 				encoded := encode(schema, embeddings, record.Values)
 				for j, v := range encoded {
 					xb[i*dim+j] = v
+					ids[i] = int64(record.Id)
 				}
 			}
 			indices[i].Train(xb)
 			fmt.Println("IsTrained(", i, ") =", indices[i].IsTrained())
-			indices[i].Add(xb)
+			indices[i].AddWithIDs(xb, ids)
 			fmt.Println("IsTrained(", i, ") =", indices[i].IsTrained())
 		}(partition_idx, partitioned_records)
 	}
