@@ -16,7 +16,6 @@ import (
 	"github.com/DataIntelligenceCrew/go-faiss"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
-	"github.com/sbinet/npyio"
 	"gonum.org/v1/gonum/mat"
 )
 
@@ -70,45 +69,6 @@ type PartitionMeta struct {
 	Trained bool     `json:"trained"`
 }
 
-func itertools_product(a ...[]string) [][]string {
-	c := 1
-	for _, a := range a {
-		c *= len(a)
-	}
-	if c == 0 {
-		return nil
-	}
-	p := make([][]string, c)
-	b := make([]string, c*len(a))
-	n := make([]int, len(a))
-	s := 0
-	for i := range p {
-		e := s + len(a)
-		pi := b[s:e]
-		p[i] = pi
-		s = e
-		for j, n := range n {
-			pi[j] = a[j][n]
-		}
-		for j := len(n) - 1; j >= 0; j-- {
-			n[j]++
-			if n[j] < len(a[j]) {
-				break
-			}
-			n[j] = 0
-		}
-	}
-	return p
-}
-
-func zip(a []string, b []string) map[string]string {
-	c := make(map[string]string)
-	for i := 0; i < len(a); i++ {
-		c[a[i]] = b[i]
-	}
-	return c
-}
-
 func read_schema(schema_file string) (Schema, [][]string) {
 	jsonFile, err := os.Open(schema_file)
 	if err != nil {
@@ -141,39 +101,6 @@ func read_index_labels(in_file string) []string {
 
 	json.Unmarshal(byteValue, &index_labels)
 	return index_labels
-}
-
-func read_npy(npy string) *mat.Dense {
-	f, err := os.Open(npy)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	r, err := npyio.NewReader(f)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	shape := r.Header.Descr.Shape
-	raw := make([]float64, shape[0]*shape[1])
-
-	err = r.Read(&raw)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	m := mat.NewDense(shape[0], shape[1], raw)
-	return m
-}
-
-func index_of(a []string, x string) int {
-	for i, n := range a {
-		if n == x {
-			return i
-		}
-	}
-	return -1
 }
 
 func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]string) []float32 {
@@ -296,12 +223,8 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 	})
 
 	app.Post("/encode", func(c *fiber.Ctx) error {
-		// Get raw body from POST request
 		var query map[string]string
 		json.Unmarshal(c.Body(), &query)
-		// if err := c.BodyParser(&query); err != nil {
-		// 	return err
-		// }
 		encoded := encode(schema, embeddings, query)
 		return c.JSON(encoded)
 	})
@@ -481,13 +404,14 @@ func main() {
 	}
 
 	embeddings := make(map[string]*mat.Dense)
-	// values:= make(map[string][]string)
 	schema, partitions := read_schema(base_dir + "/schema.json")
 	dim := 0
 	for i := 0; i < len(schema.Encoders); i++ {
-		embeddings[schema.Encoders[i].Field] = read_npy(schema.Encoders[i].Npy)
-		_, emb_size := embeddings[schema.Encoders[i].Field].Dims()
-		dim += emb_size
+		if schema.Encoders[i].Type == "np" {
+			embeddings[schema.Encoders[i].Field] = read_npy(schema.Encoders[i].Npy)
+			_, emb_size := embeddings[schema.Encoders[i].Field].Dims()
+			dim += emb_size
+		}
 	}
 	schema.Dim = dim
 	partition_map := make(map[string]int)
@@ -499,6 +423,7 @@ func main() {
 	}
 	var partitioned_records map[int][]Record
 
+	//TODO: Read from CLI
 	LOAD_INDEX := false
 	var index_labels []string
 	if LOAD_INDEX {
