@@ -6,7 +6,8 @@ embeddings = np.eye(dim)
 
 schema = {
     "filters":[{"field": "country", "values": ["EU", "US"]}],
-    "encoders":[{"field": "state",  "values": ["a", "b", "c", "d", "e"], "type":"np", "weight":1, "npy": "state.npy"}]
+    "encoders":[{"field": "state",  "values": ["a", "b", "c", "d", "e"], "type":"np", "weight":1, "npy": "state.npy"}],
+    "sources":[{"record": "items", "type": "csv", "path": "data/items.csv", "id":"id"}],
 }
 index_labels = ["eu1", "eu2", "us3", "us5"]
 
@@ -23,7 +24,7 @@ add_items(index_us, np.array([[0,0,0,0,1],[0,0,0,1,0]]), ["us5","us3"])
 # -------------Write-------------
 np.save('state.npy', embeddings)
 with open("schema.json", "w") as f:
-    json.dump(schema, f)
+    json.dump(schema, f, indent=4)
 with open("index_labels.json", "w") as f:
     json.dump(index_labels, f)
 

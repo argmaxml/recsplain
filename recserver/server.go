@@ -19,6 +19,7 @@ import (
 type Schema struct {
 	Filters  []Filter  `json:"filters"`
 	Encoders []Encoder `json:"encoders"`
+	Sources  []Source  `json:"sources"`
 }
 
 type Filter struct {
@@ -34,6 +35,14 @@ type Encoder struct {
 	Type    string   `json:"type"`
 	Npy     string   `json:"npy"`
 	Weight  float64  `json:"weight"`
+}
+
+type Source struct {
+	Record string `json:"record"`
+	Id     string `json:"id"`
+	Type   string `json:"type"`
+	Path   string `json:"path"`
+	Query  string `json:"query"`
 }
 
 func itertools_product(a ...[]string) [][]string {
@@ -134,7 +143,7 @@ func index_of(a []string, x string) int {
 	return -1
 }
 
-func encode(schema Schema, partition_map map[string]int, embeddings map[string]*mat.Dense, query map[string]string) (int, []float32) {
+func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]string) []float32 {
 	encoded := make([]float64, 0)
 	// Concatenate all components to a single vector
 	for i := 0; i < len(schema.Encoders); i++ {
@@ -157,6 +166,17 @@ func encode(schema Schema, partition_map map[string]int, embeddings map[string]*
 		}
 		encoded = append(encoded, raw_vector...)
 	}
+	// Convert to float32
+	encoded32 := make([]float32, len(encoded))
+	for i, f64 := range encoded {
+		encoded32[i] = float32(f64)
+	}
+
+	return encoded32
+}
+
+func partition_number(schema Schema, partition_map map[string]int, query map[string]string) int {
+
 	// Return partition number
 	filters := make([]string, len(schema.Filters))
 	for i := 0; i < len(schema.Filters); i++ {
@@ -168,11 +188,7 @@ func encode(schema Schema, partition_map map[string]int, embeddings map[string]*
 	}
 	partition_key := strings.Join(filters, "~")
 	partition_idx := partition_map[partition_key]
-	encoded32 := make([]float32, len(encoded))
-	for i, f64 := range encoded {
-		encoded32[i] = float32(f64)
-	}
-	return partition_idx, encoded32
+	return partition_idx
 }
 
 func l1_componentwise_distance(embeddings map[string]*mat.Dense, v1 []float32, v2 []float32) (float32, map[string]float32) {
@@ -211,24 +227,6 @@ func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, p
 		return c.SendString(msg)
 	})
 
-	// GET /flights/LAX-SFO
-	app.Get("/flights/:from-:to", func(c *fiber.Ctx) error {
-		msg := fmt.Sprintf("💸 From: %s, To: %s", c.Params("from"), c.Params("to"))
-		return c.SendString(msg) // => 💸 From: LAX, To: SFO
-	})
-
-	// GET /dictionary.txt
-	app.Get("/:file.:ext", func(c *fiber.Ctx) error {
-		msg := fmt.Sprintf("📃 %s.%s", c.Params("file"), c.Params("ext"))
-		return c.SendString(msg) // => 📃 dictionary.txt
-	})
-
-	// GET /john/75
-	app.Get("/:name/:age/:gender?", func(c *fiber.Ctx) error {
-		msg := fmt.Sprintf("👴 %s is %s years old", c.Params("name"), c.Params("age"))
-		return c.SendString(msg) // => 👴 john is 75 years old
-	})
-
 	app.Get("/partitions", func(c *fiber.Ctx) error {
 		ret := make([]string, len(partitions))
 		for i, partition := range partitions {
@@ -248,7 +246,7 @@ func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, p
 		// if err := c.BodyParser(&query); err != nil {
 		// 	return err
 		// }
-		_, encoded := encode(schema, partition_map, embeddings, query)
+		encoded := encode(schema, embeddings, query)
 		return c.JSON(encoded)
 	})
 
@@ -256,7 +254,8 @@ func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, p
 		var query map[string]string
 		json.Unmarshal(c.Body(), &query)
 
-		partition_idx, encoded := encode(schema, partition_map, embeddings, query)
+		encoded := encode(schema, embeddings, query)
+		partition_idx := partition_number(schema, partition_map, query)
 		k, err := strconv.Atoi(c.Params("k"))
 		if err != nil {
 			k = 2
