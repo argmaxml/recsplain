@@ -63,6 +63,12 @@ type Record struct {
 	Values    map[string]string
 }
 
+type PartitionMeta struct {
+	Name    []string `json:"name"`
+	Count   int      `json:"count"`
+	Trained bool     `json:"trained"`
+}
+
 type IDLookup struct {
 	Id        int
 	Partition int
@@ -272,9 +278,11 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 	})
 
 	app.Get("/partitions", func(c *fiber.Ctx) error {
-		ret := make([]string, len(partitions))
+		ret := make([]PartitionMeta, len(partitions))
 		for i, partition := range partitions {
-			ret[i] = fmt.Sprintf("%s", partition)
+			ret[i].Name = partition
+			ret[i].Count = int(indices[i].Ntotal())
+			ret[i].Trained = indices[i].IsTrained()
 		}
 		return c.JSON(ret)
 	})
@@ -320,6 +328,7 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 			if partitioned_records != nil {
 				var reconstructed []float32
 				reconstructed = nil
+				//TODO: Have a more intelligent way of looking up the original record (currently, linear search)
 				for _, record := range partitioned_records[partition_idx] {
 					if record.Id == int(id) {
 						reconstructed = encode(schema, embeddings, record.Values)
@@ -440,7 +449,6 @@ func index_partitions(schema Schema, indices []faiss.Index, dim int, embeddings 
 }
 
 func main() {
-	// base_dir := "/home/ugoren/TRecs/models/boom/"
 	base_dir := "."
 	if len(os.Args) > 1 {
 		base_dir = os.Args[1]
