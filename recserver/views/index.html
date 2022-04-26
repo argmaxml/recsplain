@@ -101,13 +101,13 @@ document.addEventListener("DOMContentLoaded", function(event) {
                 <form action="/query/{k}" method="POST">
                     {{range .Fields}}
                     <div class="form-group">
-                        <label for="frm_{{.}}">{{.}}</label>
-                        <input type="text" name="{{.}}" class="form-control" placeholder="{{.}}">
+                        <label for="query_{{.}}">{{.}}</label>
+                        <input type="text" id="query_{{.}}" name="{{.}}" class="form-control" placeholder="{{.}}">
                     </div>
                     {{end}}
                     <div class="form-group">
-                        <label for="frm_k">k</label>
-                        <input type="text" name="k" class="form-control" placeholder="k" value="2">
+                        <label for="query_k">k</label>
+                        <input type="text" id="query_k" name="k" class="form-control" placeholder="k" value="2">
                     </div>
                     <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
@@ -117,8 +117,8 @@ document.addEventListener("DOMContentLoaded", function(event) {
                 <form action="/encode" method="POST">
                     {{range .Fields}}
                     <div class="form-group">
-                        <label for="frm_{{.}}">{{.}}</label>
-                        <input type="text" name="{{.}}" class="form-control" placeholder="{{.}}">
+                        <label for="encode_{{.}}">{{.}}</label>
+                        <input type="text" id="encode_{{.}}" name="{{.}}" class="form-control" placeholder="{{.}}">
                     </div>
                     {{end}}
                     <button type="submit" class="btn btn-primary">Submit</button>
