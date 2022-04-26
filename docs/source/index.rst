@@ -17,20 +17,35 @@ Here is an example recommendation with explanations.
 
 The example query is for items in the US that are low in price and in the meat category. 
 
+You can see it in the image below. It looks like this.
+
+.. literalinclude:: item_query_example.py
+  :language: python
+
 .. image:: images/explanations.png
 
-The recommeded items are in the ids array. The ids are ordered by index position from most to least recommended. The lowest index position is the most recommended.
+The Response body in the image above contains the recommendations and explanations.
 
-The values in the distance and explanations arrays correspond to the values in the ids array by index position.
+The recommendations are in the ids array. The ids are ordered by index position from most to least recommended. The lowest index position is the most recommended.
+
+The explanations are in the distance and explanations arrays.
+
+The values in those arrays correspond to the values in the ids array by index position.
 
 How It Works 
 ---------------------------------------------------------
 
-Recsplain composes feature-vectors and weighs them.
+Recsplain turns items into weighted feature vectors.
 
- .. image:: images/diagram-1.png
+.. image:: images/diagram-1.png
 
-We have plenty of encoders built in. Check out our :doc:`encoders-list`.
+The the system compares feature vectors to one another to calculate how similar they are.
+
+ .. image:: images/diagram-2.png
+
+Recsplain can compare feature vectors using different encoders.
+
+Check out our built-in :doc:`encoders-list`.
 
 
 Field Types & Schema
