@@ -58,9 +58,9 @@ type Record struct {
 }
 
 type Explanation struct {
-	Label     string
-	Distance  float32
-	Breakdown map[string]float32
+	Label     string             `json:"label"`
+	Distance  float32            `json:"distance"`
+	Breakdown map[string]float32 `json:"breakdown"`
 }
 
 func itertools_product(a ...[]string) [][]string {
