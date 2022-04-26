@@ -69,12 +69,6 @@ type PartitionMeta struct {
 	Trained bool     `json:"trained"`
 }
 
-type IDLookup struct {
-	Id        int
-	Partition int
-	RecordId  int
-}
-
 func itertools_product(a ...[]string) [][]string {
 	c := 1
 	for _, a := range a {
