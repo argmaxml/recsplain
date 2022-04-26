@@ -56,6 +56,10 @@ func index_of(a []string, x string) int {
 	return -1
 }
 
+func contains(a []string, x string) bool {
+	return index_of(a, x) != -1
+}
+
 func read_npy(npy string) *mat.Dense {
 	f, err := os.Open(npy)
 	if err != nil {

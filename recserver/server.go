@@ -107,21 +107,31 @@ func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]st
 	encoded := make([]float64, 0)
 	// Concatenate all components to a single vector
 	for i := 0; i < len(schema.Encoders); i++ {
+		var raw_vector []float64
+		encoder_type := strings.ToLower(schema.Encoders[i].Type)
 		val, found := query[schema.Encoders[i].Field]
 		if !found {
 			val = schema.Encoders[i].Default
 		}
-		emb_matrix := embeddings[schema.Encoders[i].Field]
-		row_index := index_of(schema.Encoders[i].Values, val)
-		if row_index == -1 { // not found, use default
-			row_index = index_of(schema.Encoders[i].Values, schema.Encoders[i].Default)
-		}
-		_, emb_size := emb_matrix.Dims()
-		raw_vector := make([]float64, emb_size)
-		if row_index > -1 {
-			raw_vector = mat.Row(nil, row_index, emb_matrix)
-			for j := 0; j < emb_size; j++ {
-				raw_vector[j] *= schema.Encoders[i].Weight
+		if contains([]string{"numeric", "num", "scalar"}, encoder_type) {
+			fval, err := strconv.ParseFloat(val, 64)
+			if err != nil {
+				fval = 0
+			}
+			raw_vector = []float64{fval * schema.Encoders[i].Weight}
+		} else {
+			emb_matrix := embeddings[schema.Encoders[i].Field]
+			row_index := index_of(schema.Encoders[i].Values, val)
+			if row_index == -1 { // not found, use default
+				row_index = index_of(schema.Encoders[i].Values, schema.Encoders[i].Default)
+			}
+			_, emb_size := emb_matrix.Dims()
+			raw_vector = make([]float64, emb_size)
+			if row_index > -1 {
+				raw_vector = mat.Row(nil, row_index, emb_matrix)
+				for j := 0; j < emb_size; j++ {
+					raw_vector[j] *= schema.Encoders[i].Weight
+				}
 			}
 		}
 		encoded = append(encoded, raw_vector...)
@@ -407,10 +417,14 @@ func main() {
 	schema, partitions := read_schema(base_dir + "/schema.json")
 	dim := 0
 	for i := 0; i < len(schema.Encoders); i++ {
-		if schema.Encoders[i].Type == "np" {
+		encoder_type := strings.ToLower(schema.Encoders[i].Type)
+		if contains([]string{"np", "numpy", "npy"}, encoder_type) {
 			embeddings[schema.Encoders[i].Field] = read_npy(schema.Encoders[i].Npy)
 			_, emb_size := embeddings[schema.Encoders[i].Field].Dims()
 			dim += emb_size
+		}
+		if contains([]string{"numeric", "num", "scalar"}, encoder_type) {
+			dim += 1
 		}
 	}
 	schema.Dim = dim
