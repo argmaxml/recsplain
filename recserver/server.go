@@ -196,6 +196,19 @@ func componentwise_distance(schema Schema, embeddings map[string]*mat.Dense, v1 
 	return total_distance, breakdown
 }
 
+func reconstruct(partitioned_records map[int][]Record, embeddings map[string]*mat.Dense, partition_map map[string]int, schema Schema, id int64, partition_idx int) []float32 {
+	var reconstructed []float32
+	reconstructed = nil
+	//TODO: Have a more intelligent way of looking up the original record (currently, linear search)
+	for _, record := range partitioned_records[partition_idx] {
+		if record.Id == int(id) {
+			reconstructed = encode(schema, embeddings, record.Values)
+			break
+		}
+	}
+	return reconstructed
+}
+
 // func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
 func start_server(partitioned_records map[int][]Record, indices []faiss.Index, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
 	app := fiber.New(fiber.Config{
@@ -263,15 +276,7 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 				Distance: distances[i],
 			}
 			if partitioned_records != nil {
-				var reconstructed []float32
-				reconstructed = nil
-				//TODO: Have a more intelligent way of looking up the original record (currently, linear search)
-				for _, record := range partitioned_records[partition_idx] {
-					if record.Id == int(id) {
-						reconstructed = encode(schema, embeddings, record.Values)
-						break
-					}
-				}
+				reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
 				if reconstructed != nil {
 					total_distance, breakdown := componentwise_distance(schema, embeddings, encoded, reconstructed)
 					next_result.Distance = total_distance
@@ -283,10 +288,20 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		return c.JSON(retrieved)
 	})
 
+	app.Post("/item_query/:k?", func(c *fiber.Ctx) error {
+		return c.SendString("{\"Status\": \"OK\"}")
+	})
+
+	app.Post("/user_query/:k?", func(c *fiber.Ctx) error {
+		return c.SendString("{\"Status\": \"OK\"}")
+	})
+
 	app.Get("/", func(c *fiber.Ctx) error {
 		fields := make([]string, 0)
+		filters := make([]string, 0)
 		for _, e := range schema.Filters {
 			fields = append(fields, e.Field)
+			filters = append(filters, e.Field)
 		}
 		for _, e := range schema.Encoders {
 			fields = append(fields, e.Field)
@@ -294,6 +309,7 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		return c.Render("index", fiber.Map{
 			"Headline": "Recsplain API",
 			"Fields":   fields,
+			"Filters":  filters,
 		})
 	})
 
