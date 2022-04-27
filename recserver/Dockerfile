@@ -24,4 +24,10 @@ RUN cmake -B build . -DFAISS_ENABLE_GPU=OFF -DBUILD_SHARED_LIBS=ON -DFAISS_ENABL
 WORKDIR /root
 RUN git clone https://github.com/argmaxml/recsplain
 WORKDIR /root/recsplain/recserver
-RUN go build .
+RUN go build . && mv recserver /root/
+WORKDIR /root
+COPY schema.json /root/
+COPY *.npy /root/
+COPY *.csv /root/
+EXPOSE 3000
+CMD [ "./recserver" ]
