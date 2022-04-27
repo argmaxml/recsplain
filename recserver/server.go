@@ -289,7 +289,42 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 	})
 
 	app.Post("/item_query/:k?", func(c *fiber.Ctx) error {
-		return c.SendString("{\"Status\": \"OK\"}")
+		k, err := strconv.Atoi(c.Params("k"))
+		if err != nil {
+			k = 2
+		}
+		var query map[string]string
+		json.Unmarshal(c.Body(), &query)
+		id := int64(index_of(index_labels, query["id"]))
+		partition_idx := partition_number(schema, partition_map, query)
+		encoded := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+		if encoded == nil {
+			return c.SendString("{\"Status\": \"Not Found\"}")
+		}
+		distances, ids, err := indices[partition_idx].Search(encoded, int64(k))
+		if err != nil {
+			log.Fatal(err)
+		}
+		retrieved := make([]Explanation, 0)
+		for i, id := range ids {
+			if id == -1 {
+				continue
+			}
+			next_result := Explanation{
+				Label:    index_labels[int(id)],
+				Distance: distances[i],
+			}
+			if partitioned_records != nil {
+				reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+				if reconstructed != nil {
+					total_distance, breakdown := componentwise_distance(schema, embeddings, encoded, reconstructed)
+					next_result.Distance = total_distance
+					next_result.Breakdown = breakdown
+				}
+			}
+			retrieved = append(retrieved, next_result)
+		}
+		return c.JSON(retrieved)
 	})
 
 	app.Post("/user_query/:k?", func(c *fiber.Ctx) error {
