@@ -8,7 +8,7 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
-func itertools_product(a ...[]string) [][]string {
+func itertools_product[T any](a ...[]T) [][]T {
 	c := 1
 	for _, a := range a {
 		c *= len(a)
@@ -16,8 +16,8 @@ func itertools_product(a ...[]string) [][]string {
 	if c == 0 {
 		return nil
 	}
-	p := make([][]string, c)
-	b := make([]string, c*len(a))
+	p := make([][]T, c)
+	b := make([]T, c*len(a))
 	n := make([]int, len(a))
 	s := 0
 	for i := range p {
@@ -39,15 +39,15 @@ func itertools_product(a ...[]string) [][]string {
 	return p
 }
 
-func zip(a []string, b []string) map[string]string {
-	c := make(map[string]string)
+func zip[K comparable, V any](a []K, b []V) map[K]V {
+	c := make(map[K]V)
 	for i := 0; i < len(a); i++ {
 		c[a[i]] = b[i]
 	}
 	return c
 }
 
-func index_of(a []string, x string) int {
+func index_of[T comparable](a []T, x T) int {
 	for i, n := range a {
 		if n == x {
 			return i
@@ -56,7 +56,7 @@ func index_of(a []string, x string) int {
 	return -1
 }
 
-func contains(a []string, x string) bool {
+func contains[T comparable](a []T, x T) bool {
 	return index_of(a, x) != -1
 }
 
