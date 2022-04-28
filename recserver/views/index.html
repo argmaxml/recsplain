@@ -40,7 +40,7 @@ function json_submit(event, form) {
             if (name.endsWith("[]")) {
                 const parent=name.replace("[]", "");
                 if (!obj[parent]) obj[parent] = [];
-                obj[parent].push(value);
+                if (value) obj[parent].push(value);
             }
             else if (name.indexOf(".")>-1) {
                 // Suports only one level of nesting
@@ -48,7 +48,7 @@ function json_submit(event, form) {
                 const parent= parts[0];
                 const child = parts[1];
                 if (!obj[parent]) obj[parent] = {};
-                obj[parent][child] = value;
+                if (value) obj[parent][child] = value;
             }
             else {
                 obj[name] = value;
@@ -146,9 +146,6 @@ document.addEventListener("DOMContentLoaded", function(event) {
                 <form action="/labels" method="GET">
                     <button type="submit" class="btn btn-primary">Labels</button>
                 </form>
-                <form action="/reload" method="GET">
-                    <button type="submit" class="btn btn-primary">Reload from Sources</button>
-                </form>
             </div>
             <div class="col-md-4">
                 <h2>Item Query</h2>
@@ -172,26 +169,39 @@ document.addEventListener("DOMContentLoaded", function(event) {
             </div>
             <div class="col-md-4">
                 <h2>User Query</h2>
-                <form action="/user_query/{k}" method="POST">
+                <form action="/user_query" method="POST">
                     {{range .Filters}}
                     <div class="form-group">
                         <label for="user_{{.}}">{{.}}</label>
-                        <input type="text" id="user_{{.}}" name="{{.}}" class="form-control" placeholder="{{.}}">
+                        <input type="text" id="user_{{.}}" name="filters.{{.}}" class="form-control" placeholder="{{.}}">
                     </div>
                     {{end}}
                     <div class="form-group">
                         <label for="user_id">User Id</label>
-                        <input type="text" id="item_id" name="id" class="form-control" placeholder="Id">
-                    </div>
-                    <div class="form-group">
-                        <label for="user_history">k</label>
-                        <input type="text" id="user_history" name="user_history" class="form-control" placeholder="1,2,3,4">
+                        <input type="text" id="user_id" name="id" class="form-control" placeholder="Id">
                     </div>
                     <div class="form-group">
                         <label for="user_k">k</label>
                         <input type="text" id="user_k" name="k" class="form-control" placeholder="k" value="2">
                     </div>
+                    <div class="form-group">
+                        <label for="user_history">Item history (one item per row)</label>
+                        <input type="text" name="history[]" class="form-control">
+                        <input type="text" name="history[]" class="form-control">
+                        <input type="text" name="history[]" class="form-control">
+                        <input type="text" name="history[]" class="form-control">
+                        <input type="text" name="history[]" class="form-control">
+                    </div>
                     <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+            </div>
+            <div class="col-md-4">
+                <h2>Reload from sources</h2>
+                <form action="/reload_items" method="GET">
+                    <button type="submit" class="btn btn-primary">Reload Items</button>
+                </form>
+                <form action="/reload_users" method="GET">
+                    <button type="submit" class="btn btn-primary">Reload Users</button>
                 </form>
             </div>
         </div>

@@ -236,12 +236,17 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		return c.JSON(index_labels)
 	})
 
-	app.Get("/reload", func(c *fiber.Ctx) error {
-		partitioned_records, index_labels, _ = pull_from_sources(schema, partition_map)
+	app.Get("/reload_items", func(c *fiber.Ctx) error {
+		partitioned_records, index_labels, _ = pull_item_data(schema, partition_map)
 		for i := 0; i < len(indices); i++ {
 			indices[i].Delete()
 		}
 		index_partitions(schema, indices, embeddings, partitioned_records)
+		return c.SendString("{\"Status\": \"OK\"}")
+	})
+
+	app.Get("/reload_users", func(c *fiber.Ctx) error {
+		//TODO: Reload users
 		return c.SendString("{\"Status\": \"OK\"}")
 	})
 
@@ -262,6 +267,7 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		if err != nil {
 			k = 2
 		}
+		//TODO: Resolve code duplication (1)
 		distances, ids, err := indices[partition_idx].Search(encoded, int64(k))
 		if err != nil {
 			log.Fatal(err)
@@ -308,6 +314,7 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		if encoded == nil {
 			return c.SendString("{\"Status\": \"Not Found\"}")
 		}
+		//TODO: Resolve code duplication (2)
 		distances, ids, err := indices[partition_idx].Search(encoded, int64(k))
 		if err != nil {
 			log.Fatal(err)
@@ -335,7 +342,67 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 	})
 
 	app.Post("/user_query/:k?", func(c *fiber.Ctx) error {
-		return c.SendString("{\"Status\": \"OK\"}")
+		payload := struct {
+			K       string            `json:"k"`
+			UserId  string            `json:"id"`
+			History []string          `json:"history"`
+			Filters map[string]string `json:"filters"`
+		}{}
+
+		if err := c.BodyParser(&payload); err != nil {
+			return err
+		}
+		partition_idx := partition_number(schema, partition_map, payload.Filters)
+		k, err := strconv.Atoi(payload.K)
+		if err != nil {
+			k = 2
+		}
+		item_vecs := make([][]float32, 1)
+		item_vecs[0] = make([]float32, schema.Dim) // zero_vector
+		for _, item_id := range payload.History {
+			id := int64(index_of(index_labels, item_id))
+			if id == -1 {
+				continue
+			}
+			reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+			if reconstructed == nil {
+				continue
+			}
+			item_vecs = append(item_vecs, reconstructed)
+		}
+		//TODO: Account for cold start
+		user_vec := make([]float32, schema.Dim)
+		for _, item_vec := range item_vecs {
+			for i := range user_vec {
+				user_vec[i] += item_vec[i] / float32(len(item_vecs))
+			}
+		}
+
+		//TODO: Resolve code duplication (3)
+		distances, ids, err := indices[partition_idx].Search(user_vec, int64(k))
+		if err != nil {
+			log.Fatal(err)
+		}
+		retrieved := make([]Explanation, 0)
+		for i, id := range ids {
+			if id == -1 {
+				continue
+			}
+			next_result := Explanation{
+				Label:    index_labels[int(id)],
+				Distance: distances[i],
+			}
+			if partitioned_records != nil {
+				reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+				if reconstructed != nil {
+					total_distance, breakdown := componentwise_distance(schema, embeddings, user_vec, reconstructed)
+					next_result.Distance = total_distance
+					next_result.Breakdown = breakdown
+				}
+			}
+			retrieved = append(retrieved, next_result)
+		}
+		return c.JSON(retrieved)
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -377,7 +444,7 @@ func read_partitioned_csv(schema Schema, partition_map map[string]int, filename 
 	header := raw_data[0]
 	id_num := index_of(header, schema.IdCol)
 	if id_num == -1 {
-		return nil, nil, errors.New("Id column not found")
+		return nil, nil, errors.New("id column not found")
 	}
 	data := raw_data[1:]
 
@@ -443,7 +510,7 @@ func index_partitions(schema Schema, indices []faiss.Index, embeddings map[strin
 	wg.Wait()
 }
 
-func pull_from_sources(schema Schema, partition_map map[string]int) (map[int][]Record, []string, error) {
+func pull_item_data(schema Schema, partition_map map[string]int) (map[int][]Record, []string, error) {
 	var index_labels []string
 	var partitioned_records map[int][]Record
 	var err error
@@ -460,7 +527,7 @@ func pull_from_sources(schema Schema, partition_map map[string]int) (map[int][]R
 		}
 	}
 	if !found_item_source {
-		return nil, nil, errors.New("No item source found")
+		return nil, nil, errors.New("no item source found")
 	}
 	return partitioned_records, index_labels, err
 }
@@ -510,7 +577,7 @@ func main() {
 		partitioned_records = nil
 	} else {
 		var err error
-		partitioned_records, index_labels, err = pull_from_sources(schema, partition_map)
+		partitioned_records, index_labels, err = pull_item_data(schema, partition_map)
 		if err != nil {
 			log.Fatal(err)
 		}
