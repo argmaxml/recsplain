@@ -29,16 +29,30 @@ function json_submit(event, form) {
     for (let i = 0; i < elements.length; ++i) {
         const name = elements[i].name;
         const value = elements[i].value;
-
-        if (name) {
-            pre_url=url;
-            url=url.replace("%7B"+name+"%7D", ""+value).replace("{"+name+"}", ""+value)
-            console.log(url)
-            if (pre_url==url)
-            {
-                // parameter is not in the route and should be in the payload
+        if (!name) continue;
+        
+        pre_url=url;
+        url=url.replace("%7B"+name+"%7D", ""+value).replace("{"+name+"}", ""+value)
+        console.log(url)
+        if (pre_url==url)
+        {
+            // parameter is not in the route and should be in the payload
+            if (name.endsWith("[]")) {
+                const parent=name.replace("[]", "");
+                if (!obj[parent]) obj[parent] = [];
+                if (value) obj[parent].push(value);
+            }
+            else if (name.indexOf(".")>-1) {
+                // Suports only one level of nesting
+                const parts = name.split(".");
+                const parent= parts[0];
+                const child = parts[1];
+                if (!obj[parent]) obj[parent] = {};
+                if (value) obj[parent][child] = value;
+            }
+            else {
                 obj[name] = value;
-            } 
+            }
         }
     }
     let dataReceived = "";
@@ -91,12 +105,12 @@ document.addEventListener("DOMContentLoaded", function(event) {
     </script>
 </head>
 <body>
-    <div id="container">
+    <div class="container">
         <div class="row">
             <div class="col-md-12">
                 <h1>{{.Headline}}</h1>
             </div> 
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <h2>Query</h2>
                 <form action="/query/{k}" method="POST">
                     {{range .Fields}}
@@ -112,7 +126,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
                     <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <h2>Encode</h2>
                 <form action="/encode" method="POST">
                     {{range .Fields}}
@@ -124,7 +138,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
                     <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <h2>Metadata</h2>
                 <form action="/partitions" method="GET">
                     <button type="submit" class="btn btn-primary">Partitions</button>
@@ -132,8 +146,62 @@ document.addEventListener("DOMContentLoaded", function(event) {
                 <form action="/labels" method="GET">
                     <button type="submit" class="btn btn-primary">Labels</button>
                 </form>
-                <form action="/reload" method="GET">
-                    <button type="submit" class="btn btn-primary">Reload from Sources</button>
+            </div>
+            <div class="col-md-4">
+                <h2>Item Query</h2>
+                <form action="/item_query/" method="POST">
+                    {{range .Filters}}
+                    <div class="form-group">
+                        <label for="item_{{.}}">{{.}}</label>
+                        <input type="text" id="item_{{.}}" name="filters.{{.}}" class="form-control" placeholder="{{.}}">
+                    </div>
+                    {{end}}
+                    <div class="form-group">
+                        <label for="item_id">Item Id</label>
+                        <input type="text" id="item_id" name="id" class="form-control" placeholder="Id">
+                    </div>
+                    <div class="form-group">
+                        <label for="item_k">k</label>
+                        <input type="text" id="item_k" name="k" class="form-control" placeholder="k" value="2">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+            </div>
+            <div class="col-md-4">
+                <h2>User Query</h2>
+                <form action="/user_query" method="POST">
+                    {{range .Filters}}
+                    <div class="form-group">
+                        <label for="user_{{.}}">{{.}}</label>
+                        <input type="text" id="user_{{.}}" name="filters.{{.}}" class="form-control" placeholder="{{.}}">
+                    </div>
+                    {{end}}
+                    <div class="form-group">
+                        <label for="user_id">User Id</label>
+                        <input type="text" id="user_id" name="id" class="form-control" placeholder="Id">
+                    </div>
+                    <div class="form-group">
+                        <label for="user_k">k</label>
+                        <input type="text" id="user_k" name="k" class="form-control" placeholder="k" value="2">
+                    </div>
+                    <div class="form-group">
+                        <label for="user_history">Item history (one item per row)</label>
+                        <input type="text" name="history[]" class="form-control">
+                        <input type="text" name="history[]" class="form-control">
+                        <input type="text" name="history[]" class="form-control">
+                        <input type="text" name="history[]" class="form-control">
+                        <input type="text" name="history[]" class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+            </div>
+            <div class="col-md-4">
+                <h2>Reload from sources</h2>
+                <form action="/reload_items" method="GET">
+                    <button type="submit" class="btn btn-primary">Reload Items</button>
+                </form>
+                <form action="/reload_users" method="GET">
+                    <button type="submit" class="btn btn-primary">Reload Users</button>
                 </form>
             </div>
         </div>
