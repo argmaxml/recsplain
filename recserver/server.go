@@ -288,15 +288,22 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		return c.JSON(retrieved)
 	})
 
-	app.Post("/item_query/:k?", func(c *fiber.Ctx) error {
-		k, err := strconv.Atoi(c.Params("k"))
+	app.Post("/item_query", func(c *fiber.Ctx) error {
+		payload := struct {
+			K       string            `json:"k"`
+			ItemId  string            `json:"id"`
+			Filters map[string]string `json:"filters"`
+		}{}
+
+		if err := c.BodyParser(&payload); err != nil {
+			return err
+		}
+		k, err := strconv.Atoi(payload.K)
 		if err != nil {
 			k = 2
 		}
-		var query map[string]string
-		json.Unmarshal(c.Body(), &query)
-		id := int64(index_of(index_labels, query["id"]))
-		partition_idx := partition_number(schema, partition_map, query)
+		id := int64(index_of(index_labels, payload.ItemId))
+		partition_idx := partition_number(schema, partition_map, payload.Filters)
 		encoded := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
 		if encoded == nil {
 			return c.SendString("{\"Status\": \"Not Found\"}")

@@ -29,16 +29,30 @@ function json_submit(event, form) {
     for (let i = 0; i < elements.length; ++i) {
         const name = elements[i].name;
         const value = elements[i].value;
-
-        if (name) {
-            pre_url=url;
-            url=url.replace("%7B"+name+"%7D", ""+value).replace("{"+name+"}", ""+value)
-            console.log(url)
-            if (pre_url==url)
-            {
-                // parameter is not in the route and should be in the payload
+        if (!name) continue;
+        
+        pre_url=url;
+        url=url.replace("%7B"+name+"%7D", ""+value).replace("{"+name+"}", ""+value)
+        console.log(url)
+        if (pre_url==url)
+        {
+            // parameter is not in the route and should be in the payload
+            if (name.endsWith("[]")) {
+                const parent=name.replace("[]", "");
+                if (!obj[parent]) obj[parent] = [];
+                obj[parent].push(value);
+            }
+            else if (name.indexOf(".")>-1) {
+                // Suports only one level of nesting
+                const parts = name.split(".");
+                const parent= parts[0];
+                const child = parts[1];
+                if (!obj[parent]) obj[parent] = {};
+                obj[parent][child] = value;
+            }
+            else {
                 obj[name] = value;
-            } 
+            }
         }
     }
     let dataReceived = "";
@@ -138,11 +152,11 @@ document.addEventListener("DOMContentLoaded", function(event) {
             </div>
             <div class="col-md-4">
                 <h2>Item Query</h2>
-                <form action="/item_query/{k}" method="POST">
+                <form action="/item_query/" method="POST">
                     {{range .Filters}}
                     <div class="form-group">
                         <label for="item_{{.}}">{{.}}</label>
-                        <input type="text" id="item_{{.}}" name="{{.}}" class="form-control" placeholder="{{.}}">
+                        <input type="text" id="item_{{.}}" name="filters.{{.}}" class="form-control" placeholder="{{.}}">
                     </div>
                     {{end}}
                     <div class="form-group">
