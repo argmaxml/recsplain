@@ -14,18 +14,20 @@ import (
 	"sync"
 
 	"github.com/DataIntelligenceCrew/go-faiss"
+	"github.com/bluele/gcache"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
 	"gonum.org/v1/gonum/mat"
 )
 
 type Schema struct {
-	IdCol    string    `json:"id_col"`
-	Metric   string    `json:"metric"`
-	Filters  []Filter  `json:"filters"`
-	Encoders []Encoder `json:"encoders"`
-	Sources  []Source  `json:"sources"`
-	Dim      int       `json:"dim"`
+	IdCol        string    `json:"id_col"`
+	Metric       string    `json:"metric"`
+	IndexFactory string    `json:"index_factory"`
+	Filters      []Filter  `json:"filters"`
+	Encoders     []Encoder `json:"encoders"`
+	Sources      []Source  `json:"sources"`
+	Dim          int       `json:"dim"`
 }
 
 type Filter struct {
@@ -78,8 +80,10 @@ func read_schema(schema_file string) (Schema, [][]string) {
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 
 	var schema Schema
-
 	json.Unmarshal(byteValue, &schema)
+	if schema.IndexFactory == "" {
+		schema.IndexFactory = "IDMap,LSH"
+	}
 
 	values := make([][]string, len(schema.Filters))
 	for i := 0; i < len(schema.Filters); i++ {
@@ -209,12 +213,18 @@ func reconstruct(partitioned_records map[int][]Record, embeddings map[string]*ma
 	return reconstructed
 }
 
+func faiss_index_from_cache(cache gcache.Cache, index int) faiss.Index {
+	faiss_interface, _ := cache.Get(index)
+	return faiss_interface.(faiss.Index)
+}
+
 // func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
-func start_server(partitioned_records map[int][]Record, indices []faiss.Index, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
+func start_server(partitioned_records map[int][]Record, indices gcache.Cache, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
 
+	var faiss_index faiss.Index
 	// GET /api/register
 	app.Get("/npy/*", func(c *fiber.Ctx) error {
 		m := read_npy(c.Params("*") + ".npy")
@@ -226,8 +236,9 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		ret := make([]PartitionMeta, len(partitions))
 		for i, partition := range partitions {
 			ret[i].Name = partition
-			ret[i].Count = int(indices[i].Ntotal())
-			ret[i].Trained = indices[i].IsTrained()
+			//TODO: fix
+			// ret[i].Count = int(indices[i].Ntotal())
+			// ret[i].Trained = indices[i].IsTrained()
 		}
 		return c.JSON(ret)
 	})
@@ -238,10 +249,8 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 
 	app.Get("/reload_items", func(c *fiber.Ctx) error {
 		partitioned_records, index_labels, _ = pull_item_data(schema, partition_map)
-		for i := 0; i < len(indices); i++ {
-			indices[i].Delete()
-		}
-		index_partitions(schema, indices, embeddings, partitioned_records)
+		os.RemoveAll("indices")
+		index_partitions(schema, embeddings, partitioned_records)
 		return c.SendString("{\"Status\": \"OK\"}")
 	})
 
@@ -268,7 +277,8 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 			k = 2
 		}
 		//TODO: Resolve code duplication (1)
-		distances, ids, err := indices[partition_idx].Search(encoded, int64(k))
+		faiss_index = faiss_index_from_cache(indices, partition_idx)
+		distances, ids, err := faiss_index.Search(encoded, int64(k))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -315,7 +325,8 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 			return c.SendString("{\"Status\": \"Not Found\"}")
 		}
 		//TODO: Resolve code duplication (2)
-		distances, ids, err := indices[partition_idx].Search(encoded, int64(k))
+		faiss_index = faiss_index_from_cache(indices, partition_idx)
+		distances, ids, err := faiss_index.Search(encoded, int64(k))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -379,7 +390,8 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		}
 
 		//TODO: Resolve code duplication (3)
-		distances, ids, err := indices[partition_idx].Search(user_vec, int64(k))
+		faiss_index = faiss_index_from_cache(indices, partition_idx)
+		distances, ids, err := faiss_index.Search(user_vec, int64(k))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -474,37 +486,57 @@ func read_partitioned_csv(schema Schema, partition_map map[string]int, filename 
 	return partition2records, index_labels, nil
 }
 
-func index_partitions(schema Schema, indices []faiss.Index, embeddings map[string]*mat.Dense, records map[int][]Record) {
+func index_partitions(schema Schema, embeddings map[string]*mat.Dense, records map[int][]Record) {
+	// os.Mkdir("partitions", os.ModePerm)
+	os.Mkdir("indices", os.ModePerm)
 	var wg sync.WaitGroup
 	for partition_idx, partitioned_records := range records {
+		if len(partitioned_records) < 10 {
+			continue
+		}
+		if _, err := os.Stat(fmt.Sprintf("indices/%d", partition_idx)); !os.IsNotExist(err) {
+			continue
+		}
+
 		wg.Add(1)
-		go func(i int, recs []Record) {
+		go func(partition_idx int, partitioned_records []Record) {
+			// partition_dir := fmt.Sprintf("partitions/%d", i)
+			// os.Mkdir(partition_dir, os.ModePerm)
 			defer wg.Done()
+			// index_type := "IDMap,LSH"
+			// index_type := "IDMap,ITQ,LSHt"
+			// n_clusters := 128
+			// if len(recs) < n_clusters {
+			// 	n_clusters = len(recs)
+			// }
+			var faiss_index faiss.Index
+			// https://github.com/facebookresearch/faiss/wiki/The-index-factory
+			// index_type := fmt.Sprintf("IVF%d,Flat", n_clusters)
 			if strings.ToLower(schema.Metric) == "ip" {
-				// indices[i], _ = faiss.NewIndexFlatIP(schema.Dim)
-				indices[i], _ = faiss.IndexFactory(schema.Dim, "IVF10,Flat", faiss.MetricInnerProduct)
+				faiss_index, _ = faiss.IndexFactory(schema.Dim, schema.IndexFactory, faiss.MetricInnerProduct)
 			}
 			if strings.ToLower(schema.Metric) == "l2" {
-				// indices[i], _ = faiss.NewIndexFlatL2(schema.Dim)
-				indices[i], _ = faiss.IndexFactory(schema.Dim, "IVF10,Flat", faiss.MetricL2)
+				faiss_index, _ = faiss.IndexFactory(schema.Dim, schema.IndexFactory, faiss.MetricL2)
 			}
 			if strings.ToLower(schema.Metric) == "l1" {
-				// indices[i], _ = faiss.NewIndexFlatL1(schema.Dim)
-				indices[i], _ = faiss.IndexFactory(schema.Dim, "IVF10,Flat", faiss.MetricL1)
+				faiss_index, _ = faiss.IndexFactory(schema.Dim, schema.IndexFactory, faiss.MetricL1)
 			}
-			xb := make([]float32, schema.Dim*len(recs))
-			ids := make([]int64, len(recs))
-			for i, record := range recs {
+			xb := make([]float32, schema.Dim*len(partitioned_records))
+			ids := make([]int64, len(partitioned_records))
+			for i, record := range partitioned_records {
 				encoded := encode(schema, embeddings, record.Values)
+				// go write_npy(fmt.Sprintf("%s/%d", partition_dir, record.Id), encoded)
 				for j, v := range encoded {
 					xb[i*schema.Dim+j] = v
 					ids[i] = int64(record.Id)
 				}
 			}
-			indices[i].Train(xb)
-			fmt.Println("IsTrained(", i, ") =", indices[i].IsTrained())
-			indices[i].AddWithIDs(xb, ids)
-			fmt.Println("IsTrained(", i, ") =", indices[i].IsTrained())
+			faiss_index.Train(xb)
+			faiss_index.AddWithIDs(xb, ids)
+			faiss_index.Train(xb)
+			faiss.WriteIndex(faiss_index, fmt.Sprintf("indices/%d", partition_idx))
+			faiss_index.Delete()
+
 		}(partition_idx, partitioned_records)
 	}
 	wg.Wait()
@@ -554,35 +586,36 @@ func main() {
 	}
 	schema.Dim = dim
 	partition_map := make(map[string]int)
-	// indices := make([]faiss.IndexImpl, len(partitions))
-	indices := make([]faiss.Index, len(partitions))
 	for i := 0; i < len(partitions); i++ {
 		key := strings.Join(partitions[i], "~")
 		partition_map[key] = i
 	}
+
+	indices := gcache.New(32).
+		LFU().
+		LoaderFunc(func(key interface{}) (interface{}, error) {
+			ind, err := faiss.ReadIndex(fmt.Sprintf("%s/indices/%d", base_dir, key), 0)
+			return *ind, err
+		}).
+		EvictedFunc(func(key, value interface{}) {
+			value.(faiss.Index).Delete()
+		}).
+		Build()
+
+	// indices := make([]faiss.IndexImpl, len(partitions))
+	// indices := make([]faiss.Index, len(partitions))
+
 	var partitioned_records map[int][]Record
 
 	//TODO: Read from CLI
-	LOAD_INDEX := false
 	var index_labels []string
-	if LOAD_INDEX {
-		index_labels = read_index_labels(base_dir + "/index_labels.json")
-		for i := 0; i < len(partitions); i++ {
-			ind, err := faiss.ReadIndex(base_dir+"/"+strconv.Itoa(i), 0)
-			indices[i] = *ind
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		partitioned_records = nil
-	} else {
-		var err error
-		partitioned_records, index_labels, err = pull_item_data(schema, partition_map)
-		if err != nil {
-			log.Fatal(err)
-		}
-		index_partitions(schema, indices, embeddings, partitioned_records)
+	var err error
+	partitioned_records, index_labels, err = pull_item_data(schema, partition_map)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	index_partitions(schema, embeddings, partitioned_records)
 
 	start_server(partitioned_records, indices, embeddings, partitions, partition_map, schema, index_labels)
 }
