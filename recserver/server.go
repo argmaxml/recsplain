@@ -61,6 +61,12 @@ type Explanation struct {
 	Breakdown map[string]float32 `json:"breakdown"`
 }
 
+type ItemLookup struct {
+	id2label        []string
+	label2id        map[string]int
+	label2partition map[string]int
+}
+
 type Record struct {
 	Id        int
 	Label     string
@@ -88,7 +94,7 @@ func read_index_labels(in_file string) []string {
 	return index_labels
 }
 
-func encode(schema Schema, query map[string]string) []float32 {
+func (schema Schema) encode(query map[string]string) []float32 {
 	encoded := make([]float64, 0)
 	// Concatenate all components to a single vector
 	for i := 0; i < len(schema.Encoders); i++ {
@@ -130,7 +136,7 @@ func encode(schema Schema, query map[string]string) []float32 {
 	return encoded32
 }
 
-func partition_number(schema Schema, query map[string]string) int {
+func (schema Schema) partition_number(query map[string]string) int {
 
 	filters := make([]string, len(schema.Filters))
 	for i := 0; i < len(schema.Filters); i++ {
@@ -145,7 +151,7 @@ func partition_number(schema Schema, query map[string]string) int {
 	return partition_idx
 }
 
-func componentwise_distance(schema Schema, v1 []float32, v2 []float32) (float32, map[string]float32) {
+func (schema Schema) componentwise_distance(v1 []float32, v2 []float32) (float32, map[string]float32) {
 	breakdown := make(map[string]float32)
 	var total_distance float32
 	total_distance = 0
@@ -181,13 +187,13 @@ func componentwise_distance(schema Schema, v1 []float32, v2 []float32) (float32,
 	return total_distance, breakdown
 }
 
-func reconstruct(schema Schema, partitioned_records map[int][]Record, id int64, partition_idx int) []float32 {
+func (schema Schema) reconstruct(partitioned_records map[int][]Record, id int64, partition_idx int) []float32 {
 	var reconstructed []float32
 	reconstructed = nil
 	//TODO: Have a more intelligent way of looking up the original record (currently, linear search)
 	for _, record := range partitioned_records[partition_idx] {
 		if record.Id == int(id) {
-			reconstructed = encode(schema, record.Values)
+			reconstructed = schema.encode(record.Values)
 			break
 		}
 	}
@@ -199,8 +205,7 @@ func faiss_index_from_cache(cache gcache.Cache, index int) faiss.Index {
 	return faiss_interface.(faiss.Index)
 }
 
-// func start_server(indices []faiss.IndexImpl,  partitions [][]string,  schema Schema, index_labels []string) {
-func start_server(schema Schema, partitioned_records map[int][]Record, indices gcache.Cache, index_labels []string) {
+func start_server(schema Schema, partitioned_records map[int][]Record, indices gcache.Cache, item_lookup ItemLookup) {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
@@ -225,13 +230,13 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 	})
 
 	app.Get("/labels", func(c *fiber.Ctx) error {
-		return c.JSON(index_labels)
+		return c.JSON(item_lookup.id2label)
 	})
 
 	app.Get("/reload_items", func(c *fiber.Ctx) error {
-		partitioned_records, index_labels, _ = pull_item_data(schema)
+		partitioned_records, item_lookup, _ = schema.pull_item_data()
 		os.RemoveAll("indices")
-		index_partitions(schema, partitioned_records)
+		schema.index_partitions(partitioned_records)
 		return c.SendString("{\"Status\": \"OK\"}")
 	})
 
@@ -243,7 +248,7 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 	app.Post("/encode", func(c *fiber.Ctx) error {
 		var query map[string]string
 		json.Unmarshal(c.Body(), &query)
-		encoded := encode(schema, query)
+		encoded := schema.encode(query)
 		return c.JSON(encoded)
 	})
 
@@ -251,8 +256,8 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 		var query map[string]string
 		json.Unmarshal(c.Body(), &query)
 
-		encoded := encode(schema, query)
-		partition_idx := partition_number(schema, query)
+		encoded := schema.encode(query)
+		partition_idx := schema.partition_number(query)
 		k, err := strconv.Atoi(c.Params("k"))
 		if err != nil {
 			k = 2
@@ -269,13 +274,13 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 				continue
 			}
 			next_result := Explanation{
-				Label:    index_labels[int(id)],
+				Label:    item_lookup.id2label[int(id)],
 				Distance: distances[i],
 			}
 			if partitioned_records != nil {
-				reconstructed := reconstruct(schema, partitioned_records, id, partition_idx)
+				reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
 				if reconstructed != nil {
-					total_distance, breakdown := componentwise_distance(schema, encoded, reconstructed)
+					total_distance, breakdown := schema.componentwise_distance(encoded, reconstructed)
 					next_result.Distance = total_distance
 					next_result.Breakdown = breakdown
 				}
@@ -299,9 +304,9 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 		if err != nil {
 			k = 2
 		}
-		id := int64(index_of(index_labels, payload.ItemId))
-		partition_idx := partition_number(schema, payload.Filters)
-		encoded := reconstruct(schema, partitioned_records, id, partition_idx)
+		id := int64(item_lookup.label2id[payload.ItemId])
+		partition_idx := schema.partition_number(payload.Filters)
+		encoded := schema.reconstruct(partitioned_records, id, partition_idx)
 		if encoded == nil {
 			return c.SendString("{\"Status\": \"Not Found\"}")
 		}
@@ -317,13 +322,13 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 				continue
 			}
 			next_result := Explanation{
-				Label:    index_labels[int(id)],
+				Label:    item_lookup.id2label[int(id)],
 				Distance: distances[i],
 			}
 			if partitioned_records != nil {
-				reconstructed := reconstruct(schema, partitioned_records, id, partition_idx)
+				reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
 				if reconstructed != nil {
-					total_distance, breakdown := componentwise_distance(schema, encoded, reconstructed)
+					total_distance, breakdown := schema.componentwise_distance(encoded, reconstructed)
 					next_result.Distance = total_distance
 					next_result.Breakdown = breakdown
 				}
@@ -344,7 +349,7 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 		if err := c.BodyParser(&payload); err != nil {
 			return err
 		}
-		partition_idx := partition_number(schema, payload.Filters)
+		partition_idx := schema.partition_number(payload.Filters)
 		k, err := strconv.Atoi(payload.K)
 		if err != nil {
 			k = 2
@@ -352,11 +357,11 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 		item_vecs := make([][]float32, 1)
 		item_vecs[0] = make([]float32, schema.Dim) // zero_vector
 		for _, item_id := range payload.History {
-			id := int64(index_of(index_labels, item_id))
+			id := int64(item_lookup.label2id[item_id])
 			if id == -1 {
 				continue
 			}
-			reconstructed := reconstruct(schema, partitioned_records, id, partition_idx)
+			reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
 			if reconstructed == nil {
 				continue
 			}
@@ -382,13 +387,13 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 				continue
 			}
 			next_result := Explanation{
-				Label:    index_labels[int(id)],
+				Label:    item_lookup.id2label[int(id)],
 				Distance: distances[i],
 			}
 			if partitioned_records != nil {
-				reconstructed := reconstruct(schema, partitioned_records, id, partition_idx)
+				reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
 				if reconstructed != nil {
-					total_distance, breakdown := componentwise_distance(schema, user_vec, reconstructed)
+					total_distance, breakdown := schema.componentwise_distance(user_vec, reconstructed)
 					next_result.Distance = total_distance
 					next_result.Breakdown = breakdown
 				}
@@ -418,7 +423,7 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 	log.Fatal(app.Listen(":3000"))
 }
 
-func read_partitioned_csv(schema Schema, filename string) (map[int][]Record, []string, error) {
+func (schema Schema) read_partitioned_csv(filename string) (map[int][]Record, ItemLookup, error) {
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -431,17 +436,18 @@ func read_partitioned_csv(schema Schema, filename string) (map[int][]Record, []s
 	reader.FieldsPerRecord = -1
 	raw_data, err := reader.ReadAll()
 	if err != nil {
-		return nil, nil, err
+		return nil, ItemLookup{}, err
 	}
 
 	header := raw_data[0]
 	id_num := index_of(header, schema.IdCol)
 	if id_num == -1 {
-		return nil, nil, errors.New("id column not found")
+		return nil, ItemLookup{}, errors.New("id column not found")
 	}
 	data := raw_data[1:]
 
 	label2id := make(map[string]int)
+	label2partition := make(map[string]int)
 	partition2records := make(map[int][]Record)
 	for _, row := range data {
 		id, found := label2id[row[id_num]]
@@ -450,7 +456,8 @@ func read_partitioned_csv(schema Schema, filename string) (map[int][]Record, []s
 			label2id[row[id_num]] = id
 		}
 		query := zip(header, row)
-		partition_idx := partition_number(schema, query)
+		partition_idx := schema.partition_number(query)
+		label2partition[row[id_num]] = partition_idx
 		partition2records[partition_idx] = append(partition2records[partition_idx], Record{
 			Label:     row[id_num],
 			Id:        id,
@@ -459,15 +466,21 @@ func read_partitioned_csv(schema Schema, filename string) (map[int][]Record, []s
 		})
 
 	}
-	//TODO: Do we need index_labels ? can we use the label2id instead?
-	index_labels := make([]string, len(label2id))
+	id2label := make([]string, len(label2id))
 	for lbl, id := range label2id {
-		index_labels[id] = lbl
+		id2label[id] = lbl
 	}
-	return partition2records, index_labels, nil
+	// Build lookups
+	item_lookup := ItemLookup{
+		label2id:        label2id,
+		id2label:        id2label,
+		label2partition: label2partition,
+	}
+	item_lookup.id2label = id2label
+	return partition2records, item_lookup, nil
 }
 
-func index_partitions(schema Schema, records map[int][]Record) {
+func (schema Schema) index_partitions(records map[int][]Record) {
 	// os.Mkdir("partitions", os.ModePerm)
 	os.Mkdir("indices", os.ModePerm)
 	var wg sync.WaitGroup
@@ -505,7 +518,7 @@ func index_partitions(schema Schema, records map[int][]Record) {
 			xb := make([]float32, schema.Dim*len(partitioned_records))
 			ids := make([]int64, len(partitioned_records))
 			for i, record := range partitioned_records {
-				encoded := encode(schema, record.Values)
+				encoded := schema.encode(record.Values)
 				// go write_npy(fmt.Sprintf("%s/%d", partition_dir, record.Id), encoded)
 				for j, v := range encoded {
 					xb[i*schema.Dim+j] = v
@@ -523,26 +536,26 @@ func index_partitions(schema Schema, records map[int][]Record) {
 	wg.Wait()
 }
 
-func pull_item_data(schema Schema) (map[int][]Record, []string, error) {
-	var index_labels []string
+func (schema Schema) pull_item_data() (map[int][]Record, ItemLookup, error) {
+	var item_lookup ItemLookup
 	var partitioned_records map[int][]Record
 	var err error
 	found_item_source := false
 	for _, src := range schema.Sources {
 		if strings.ToLower(src.Record) == "items" {
 			if src.Type == "csv" {
-				partitioned_records, index_labels, err = read_partitioned_csv(schema, src.Path)
+				partitioned_records, item_lookup, err = schema.read_partitioned_csv(src.Path)
 				if err != nil {
-					return nil, nil, err
+					return nil, ItemLookup{}, err
 				}
 				found_item_source = true
 			}
 		}
 	}
 	if !found_item_source {
-		return nil, nil, errors.New("no item source found")
+		return nil, ItemLookup{}, errors.New("no item source found")
 	}
-	return partitioned_records, index_labels, err
+	return partitioned_records, item_lookup, err
 }
 
 func read_schema(schema_file string) Schema {
@@ -617,14 +630,14 @@ func main() {
 	var partitioned_records map[int][]Record
 
 	//TODO: Read from CLI
-	var index_labels []string
+	var item_lookup ItemLookup
 	var err error
-	partitioned_records, index_labels, err = pull_item_data(schema)
+	partitioned_records, item_lookup, err = schema.pull_item_data()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	index_partitions(schema, partitioned_records)
+	schema.index_partitions(partitioned_records)
 
-	start_server(schema, partitioned_records, indices, index_labels)
+	start_server(schema, partitioned_records, indices, item_lookup)
 }
