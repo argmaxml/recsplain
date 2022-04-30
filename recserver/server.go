@@ -28,6 +28,9 @@ type Schema struct {
 	Encoders     []Encoder `json:"encoders"`
 	Sources      []Source  `json:"sources"`
 	Dim          int       `json:"dim"`
+	Embeddings   map[string]*mat.Dense
+	Partitions   [][]string
+	PartitionMap map[string]int
 }
 
 type Filter struct {
@@ -71,28 +74,6 @@ type PartitionMeta struct {
 	Trained bool     `json:"trained"`
 }
 
-func read_schema(schema_file string) (Schema, [][]string) {
-	jsonFile, err := os.Open(schema_file)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer jsonFile.Close()
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-
-	var schema Schema
-	json.Unmarshal(byteValue, &schema)
-	if schema.IndexFactory == "" {
-		schema.IndexFactory = "IDMap,LSH"
-	}
-
-	values := make([][]string, len(schema.Filters))
-	for i := 0; i < len(schema.Filters); i++ {
-		values[i] = schema.Filters[i].Values
-	}
-	partitions := itertools_product(values...)
-	return schema, partitions
-}
-
 func read_index_labels(in_file string) []string {
 	jsonFile, err := os.Open(in_file)
 	if err != nil {
@@ -107,7 +88,7 @@ func read_index_labels(in_file string) []string {
 	return index_labels
 }
 
-func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]string) []float32 {
+func encode(schema Schema, query map[string]string) []float32 {
 	encoded := make([]float64, 0)
 	// Concatenate all components to a single vector
 	for i := 0; i < len(schema.Encoders); i++ {
@@ -124,7 +105,7 @@ func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]st
 			}
 			raw_vector = []float64{fval * schema.Encoders[i].Weight}
 		} else {
-			emb_matrix := embeddings[schema.Encoders[i].Field]
+			emb_matrix := schema.Embeddings[schema.Encoders[i].Field]
 			row_index := index_of(schema.Encoders[i].Values, val)
 			if row_index == -1 { // not found, use default
 				row_index = index_of(schema.Encoders[i].Values, schema.Encoders[i].Default)
@@ -149,7 +130,7 @@ func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]st
 	return encoded32
 }
 
-func partition_number(schema Schema, partition_map map[string]int, query map[string]string) int {
+func partition_number(schema Schema, query map[string]string) int {
 
 	filters := make([]string, len(schema.Filters))
 	for i := 0; i < len(schema.Filters); i++ {
@@ -160,16 +141,16 @@ func partition_number(schema Schema, partition_map map[string]int, query map[str
 		filters[i] = val
 	}
 	partition_key := strings.Join(filters, "~")
-	partition_idx := partition_map[partition_key]
+	partition_idx := schema.PartitionMap[partition_key]
 	return partition_idx
 }
 
-func componentwise_distance(schema Schema, embeddings map[string]*mat.Dense, v1 []float32, v2 []float32) (float32, map[string]float32) {
+func componentwise_distance(schema Schema, v1 []float32, v2 []float32) (float32, map[string]float32) {
 	breakdown := make(map[string]float32)
 	var total_distance float32
 	total_distance = 0
 	vector_size := 0
-	for field, emb_matrix := range embeddings {
+	for field, emb_matrix := range schema.Embeddings {
 		_, emb_size := emb_matrix.Dims()
 		breakdown[field] = 0
 		for i := 0; i < emb_size; i++ {
@@ -200,13 +181,13 @@ func componentwise_distance(schema Schema, embeddings map[string]*mat.Dense, v1 
 	return total_distance, breakdown
 }
 
-func reconstruct(partitioned_records map[int][]Record, embeddings map[string]*mat.Dense, partition_map map[string]int, schema Schema, id int64, partition_idx int) []float32 {
+func reconstruct(schema Schema, partitioned_records map[int][]Record, id int64, partition_idx int) []float32 {
 	var reconstructed []float32
 	reconstructed = nil
 	//TODO: Have a more intelligent way of looking up the original record (currently, linear search)
 	for _, record := range partitioned_records[partition_idx] {
 		if record.Id == int(id) {
-			reconstructed = encode(schema, embeddings, record.Values)
+			reconstructed = encode(schema, record.Values)
 			break
 		}
 	}
@@ -218,8 +199,8 @@ func faiss_index_from_cache(cache gcache.Cache, index int) faiss.Index {
 	return faiss_interface.(faiss.Index)
 }
 
-// func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
-func start_server(partitioned_records map[int][]Record, indices gcache.Cache, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
+// func start_server(indices []faiss.IndexImpl,  partitions [][]string,  schema Schema, index_labels []string) {
+func start_server(schema Schema, partitioned_records map[int][]Record, indices gcache.Cache, index_labels []string) {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
@@ -233,8 +214,8 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 	})
 
 	app.Get("/partitions", func(c *fiber.Ctx) error {
-		ret := make([]PartitionMeta, len(partitions))
-		for i, partition := range partitions {
+		ret := make([]PartitionMeta, len(schema.Partitions))
+		for i, partition := range schema.Partitions {
 			ret[i].Name = partition
 			//TODO: fix
 			// ret[i].Count = int(indices[i].Ntotal())
@@ -248,9 +229,9 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 	})
 
 	app.Get("/reload_items", func(c *fiber.Ctx) error {
-		partitioned_records, index_labels, _ = pull_item_data(schema, partition_map)
+		partitioned_records, index_labels, _ = pull_item_data(schema)
 		os.RemoveAll("indices")
-		index_partitions(schema, embeddings, partitioned_records)
+		index_partitions(schema, partitioned_records)
 		return c.SendString("{\"Status\": \"OK\"}")
 	})
 
@@ -262,7 +243,7 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 	app.Post("/encode", func(c *fiber.Ctx) error {
 		var query map[string]string
 		json.Unmarshal(c.Body(), &query)
-		encoded := encode(schema, embeddings, query)
+		encoded := encode(schema, query)
 		return c.JSON(encoded)
 	})
 
@@ -270,8 +251,8 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 		var query map[string]string
 		json.Unmarshal(c.Body(), &query)
 
-		encoded := encode(schema, embeddings, query)
-		partition_idx := partition_number(schema, partition_map, query)
+		encoded := encode(schema, query)
+		partition_idx := partition_number(schema, query)
 		k, err := strconv.Atoi(c.Params("k"))
 		if err != nil {
 			k = 2
@@ -292,9 +273,9 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 				Distance: distances[i],
 			}
 			if partitioned_records != nil {
-				reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+				reconstructed := reconstruct(schema, partitioned_records, id, partition_idx)
 				if reconstructed != nil {
-					total_distance, breakdown := componentwise_distance(schema, embeddings, encoded, reconstructed)
+					total_distance, breakdown := componentwise_distance(schema, encoded, reconstructed)
 					next_result.Distance = total_distance
 					next_result.Breakdown = breakdown
 				}
@@ -319,8 +300,8 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 			k = 2
 		}
 		id := int64(index_of(index_labels, payload.ItemId))
-		partition_idx := partition_number(schema, partition_map, payload.Filters)
-		encoded := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+		partition_idx := partition_number(schema, payload.Filters)
+		encoded := reconstruct(schema, partitioned_records, id, partition_idx)
 		if encoded == nil {
 			return c.SendString("{\"Status\": \"Not Found\"}")
 		}
@@ -340,9 +321,9 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 				Distance: distances[i],
 			}
 			if partitioned_records != nil {
-				reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+				reconstructed := reconstruct(schema, partitioned_records, id, partition_idx)
 				if reconstructed != nil {
-					total_distance, breakdown := componentwise_distance(schema, embeddings, encoded, reconstructed)
+					total_distance, breakdown := componentwise_distance(schema, encoded, reconstructed)
 					next_result.Distance = total_distance
 					next_result.Breakdown = breakdown
 				}
@@ -363,7 +344,7 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 		if err := c.BodyParser(&payload); err != nil {
 			return err
 		}
-		partition_idx := partition_number(schema, partition_map, payload.Filters)
+		partition_idx := partition_number(schema, payload.Filters)
 		k, err := strconv.Atoi(payload.K)
 		if err != nil {
 			k = 2
@@ -375,7 +356,7 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 			if id == -1 {
 				continue
 			}
-			reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+			reconstructed := reconstruct(schema, partitioned_records, id, partition_idx)
 			if reconstructed == nil {
 				continue
 			}
@@ -405,9 +386,9 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 				Distance: distances[i],
 			}
 			if partitioned_records != nil {
-				reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+				reconstructed := reconstruct(schema, partitioned_records, id, partition_idx)
 				if reconstructed != nil {
-					total_distance, breakdown := componentwise_distance(schema, embeddings, user_vec, reconstructed)
+					total_distance, breakdown := componentwise_distance(schema, user_vec, reconstructed)
 					next_result.Distance = total_distance
 					next_result.Breakdown = breakdown
 				}
@@ -437,7 +418,7 @@ func start_server(partitioned_records map[int][]Record, indices gcache.Cache, em
 	log.Fatal(app.Listen(":3000"))
 }
 
-func read_partitioned_csv(schema Schema, partition_map map[string]int, filename string) (map[int][]Record, []string, error) {
+func read_partitioned_csv(schema Schema, filename string) (map[int][]Record, []string, error) {
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -469,7 +450,7 @@ func read_partitioned_csv(schema Schema, partition_map map[string]int, filename 
 			label2id[row[id_num]] = id
 		}
 		query := zip(header, row)
-		partition_idx := partition_number(schema, partition_map, query)
+		partition_idx := partition_number(schema, query)
 		partition2records[partition_idx] = append(partition2records[partition_idx], Record{
 			Label:     row[id_num],
 			Id:        id,
@@ -486,7 +467,7 @@ func read_partitioned_csv(schema Schema, partition_map map[string]int, filename 
 	return partition2records, index_labels, nil
 }
 
-func index_partitions(schema Schema, embeddings map[string]*mat.Dense, records map[int][]Record) {
+func index_partitions(schema Schema, records map[int][]Record) {
 	// os.Mkdir("partitions", os.ModePerm)
 	os.Mkdir("indices", os.ModePerm)
 	var wg sync.WaitGroup
@@ -524,7 +505,7 @@ func index_partitions(schema Schema, embeddings map[string]*mat.Dense, records m
 			xb := make([]float32, schema.Dim*len(partitioned_records))
 			ids := make([]int64, len(partitioned_records))
 			for i, record := range partitioned_records {
-				encoded := encode(schema, embeddings, record.Values)
+				encoded := encode(schema, record.Values)
 				// go write_npy(fmt.Sprintf("%s/%d", partition_dir, record.Id), encoded)
 				for j, v := range encoded {
 					xb[i*schema.Dim+j] = v
@@ -542,7 +523,7 @@ func index_partitions(schema Schema, embeddings map[string]*mat.Dense, records m
 	wg.Wait()
 }
 
-func pull_item_data(schema Schema, partition_map map[string]int) (map[int][]Record, []string, error) {
+func pull_item_data(schema Schema) (map[int][]Record, []string, error) {
 	var index_labels []string
 	var partitioned_records map[int][]Record
 	var err error
@@ -550,7 +531,7 @@ func pull_item_data(schema Schema, partition_map map[string]int) (map[int][]Reco
 	for _, src := range schema.Sources {
 		if strings.ToLower(src.Record) == "items" {
 			if src.Type == "csv" {
-				partitioned_records, index_labels, err = read_partitioned_csv(schema, partition_map, src.Path)
+				partitioned_records, index_labels, err = read_partitioned_csv(schema, src.Path)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -564,14 +545,20 @@ func pull_item_data(schema Schema, partition_map map[string]int) (map[int][]Reco
 	return partitioned_records, index_labels, err
 }
 
-func main() {
-	base_dir := "."
-	if len(os.Args) > 1 {
-		base_dir = os.Args[1]
+func read_schema(schema_file string) Schema {
+	jsonFile, err := os.Open(schema_file)
+	if err != nil {
+		fmt.Println(err)
 	}
+	defer jsonFile.Close()
+	byteValue, _ := ioutil.ReadAll(jsonFile)
 
+	var schema Schema
+	json.Unmarshal(byteValue, &schema)
+	if schema.IndexFactory == "" {
+		schema.IndexFactory = "IDMap,LSH"
+	}
 	embeddings := make(map[string]*mat.Dense)
-	schema, partitions := read_schema(base_dir + "/schema.json")
 	dim := 0
 	for i := 0; i < len(schema.Encoders); i++ {
 		encoder_type := strings.ToLower(schema.Encoders[i].Type)
@@ -585,11 +572,33 @@ func main() {
 		}
 	}
 	schema.Dim = dim
+	schema.Embeddings = embeddings
+
+	values := make([][]string, len(schema.Filters))
+	for i := 0; i < len(schema.Filters); i++ {
+		values[i] = schema.Filters[i].Values
+	}
+	partitions := itertools_product(values...)
+
+	schema.Partitions = partitions
+
 	partition_map := make(map[string]int)
 	for i := 0; i < len(partitions); i++ {
 		key := strings.Join(partitions[i], "~")
 		partition_map[key] = i
 	}
+	schema.PartitionMap = partition_map
+
+	return schema
+}
+
+func main() {
+	base_dir := "."
+	if len(os.Args) > 1 {
+		base_dir = os.Args[1]
+	}
+
+	schema := read_schema(base_dir + "/schema.json")
 
 	indices := gcache.New(32).
 		LFU().
@@ -610,12 +619,12 @@ func main() {
 	//TODO: Read from CLI
 	var index_labels []string
 	var err error
-	partitioned_records, index_labels, err = pull_item_data(schema, partition_map)
+	partitioned_records, index_labels, err = pull_item_data(schema)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	index_partitions(schema, embeddings, partitioned_records)
+	index_partitions(schema, partitioned_records)
 
-	start_server(partitioned_records, indices, embeddings, partitions, partition_map, schema, index_labels)
+	start_server(schema, partitioned_records, indices, index_labels)
 }
