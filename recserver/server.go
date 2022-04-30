@@ -205,7 +205,7 @@ func faiss_index_from_cache(cache gcache.Cache, index int) faiss.Index {
 	return faiss_interface.(faiss.Index)
 }
 
-func start_server(schema Schema, partitioned_records map[int][]Record, indices gcache.Cache, item_lookup ItemLookup) {
+func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, partitioned_records map[int][]Record, user_data map[string][]string) {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
@@ -241,7 +241,14 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 	})
 
 	app.Get("/reload_users", func(c *fiber.Ctx) error {
-		//TODO: Reload users
+		var err error
+		if user_data == nil {
+			return c.SendString("User history not available in sources list")
+		}
+		user_data, err = schema.pull_user_data()
+		if err != nil {
+			return c.SendString(err.Error())
+		}
 		return c.SendString("{\"Status\": \"OK\"}")
 	})
 
@@ -356,6 +363,15 @@ func start_server(schema Schema, partitioned_records map[int][]Record, indices g
 		}
 		item_vecs := make([][]float32, 1)
 		item_vecs[0] = make([]float32, schema.Dim) // zero_vector
+
+		if payload.UserId != "" {
+			//Override user history from the id, if provided
+			if user_data == nil {
+				return c.SendString("User history not available in sources list")
+			}
+			payload.History = user_data[payload.UserId]
+		}
+
 		for _, item_id := range payload.History {
 			id := int64(item_lookup.label2id[item_id])
 			if id == -1 {
@@ -558,26 +574,61 @@ func (schema Schema) pull_item_data() (map[int][]Record, ItemLookup, error) {
 	return partitioned_records, item_lookup, err
 }
 
-func (schema Schema) pull_user_data() (map[int][]Record, ItemLookup, error) {
-	var item_lookup ItemLookup
-	var partitioned_records map[int][]Record
+func (schema Schema) pull_user_data() (map[string][]string, error) {
+	var user_data map[string][]string
 	var err error
 	found_user_source := false
 	for _, src := range schema.Sources {
 		if strings.ToLower(src.Record) == "users" {
 			if src.Type == "csv" {
-				partitioned_records, item_lookup, err = schema.read_partitioned_csv(src.Path)
+				user_data, err = schema.read_user_csv(src.Path, src.Query)
 				if err != nil {
-					return nil, ItemLookup{}, err
+					return nil, err
 				}
 				found_user_source = true
 			}
 		}
 	}
 	if !found_user_source {
-		return nil, ItemLookup{}, errors.New("no user source found")
+		return nil, errors.New("no user source found")
 	}
-	return partitioned_records, item_lookup, err
+	return user_data, err
+}
+
+func (schema Schema) read_user_csv(filename string, history_col string) (map[string][]string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	// reader.Comma = '\t'
+	reader.FieldsPerRecord = -1
+	raw_data, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	header := raw_data[0]
+	id_num := index_of(header, schema.IdCol)
+	if id_num == -1 {
+		return nil, errors.New("id column not found")
+	}
+
+	history_num := index_of(header, history_col)
+	if id_num == -1 {
+		return nil, errors.New("history column not found")
+	}
+	data := raw_data[1:]
+
+	user_data := make(map[string][]string)
+	for _, row := range data {
+		user_id := row[id_num]
+		user_data[user_id] = strings.Split(row[history_num], ",")
+	}
+
+	return user_data, nil
 }
 
 func read_schema(schema_file string) Schema {
@@ -650,6 +701,7 @@ func main() {
 	// indices := make([]faiss.Index, len(partitions))
 
 	var partitioned_records map[int][]Record
+	var user_data map[string][]string
 
 	//TODO: Read from CLI
 	var item_lookup ItemLookup
@@ -658,8 +710,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	user_data, err = schema.pull_user_data()
+	if err != nil {
+		log.Println(err)
+	}
 
 	schema.index_partitions(partitioned_records)
 
-	start_server(schema, partitioned_records, indices, item_lookup)
+	start_server(schema, indices, item_lookup, partitioned_records, user_data)
 }
