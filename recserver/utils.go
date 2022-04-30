@@ -83,3 +83,17 @@ func read_npy(npy string) *mat.Dense {
 	m := mat.NewDense(shape[0], shape[1], raw)
 	return m
 }
+
+func write_npy(npy string, m []float32) error {
+	f, err := os.Create(npy)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	err = npyio.Write(f, m)
+	if err != nil {
+		return err
+	}
+	return nil
+}

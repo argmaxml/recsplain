@@ -14,18 +14,23 @@ import (
 	"sync"
 
 	"github.com/DataIntelligenceCrew/go-faiss"
+	"github.com/bluele/gcache"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
 	"gonum.org/v1/gonum/mat"
 )
 
 type Schema struct {
-	IdCol    string    `json:"id_col"`
-	Metric   string    `json:"metric"`
-	Filters  []Filter  `json:"filters"`
-	Encoders []Encoder `json:"encoders"`
-	Sources  []Source  `json:"sources"`
-	Dim      int       `json:"dim"`
+	IdCol        string    `json:"id_col"`
+	Metric       string    `json:"metric"`
+	IndexFactory string    `json:"index_factory"`
+	Filters      []Filter  `json:"filters"`
+	Encoders     []Encoder `json:"encoders"`
+	Sources      []Source  `json:"sources"`
+	Dim          int       `json:"dim"`
+	Embeddings   map[string]*mat.Dense
+	Partitions   [][]string
+	PartitionMap map[string]int
 }
 
 type Filter struct {
@@ -56,6 +61,12 @@ type Explanation struct {
 	Breakdown map[string]float32 `json:"breakdown"`
 }
 
+type ItemLookup struct {
+	id2label        []string
+	label2id        map[string]int
+	label2partition map[string]int
+}
+
 type Record struct {
 	Id        int
 	Label     string
@@ -67,26 +78,6 @@ type PartitionMeta struct {
 	Name    []string `json:"name"`
 	Count   int      `json:"count"`
 	Trained bool     `json:"trained"`
-}
-
-func read_schema(schema_file string) (Schema, [][]string) {
-	jsonFile, err := os.Open(schema_file)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer jsonFile.Close()
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-
-	var schema Schema
-
-	json.Unmarshal(byteValue, &schema)
-
-	values := make([][]string, len(schema.Filters))
-	for i := 0; i < len(schema.Filters); i++ {
-		values[i] = schema.Filters[i].Values
-	}
-	partitions := itertools_product(values...)
-	return schema, partitions
 }
 
 func read_index_labels(in_file string) []string {
@@ -103,7 +94,7 @@ func read_index_labels(in_file string) []string {
 	return index_labels
 }
 
-func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]string) []float32 {
+func (schema Schema) encode(query map[string]string) []float32 {
 	encoded := make([]float64, 0)
 	// Concatenate all components to a single vector
 	for i := 0; i < len(schema.Encoders); i++ {
@@ -120,7 +111,7 @@ func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]st
 			}
 			raw_vector = []float64{fval * schema.Encoders[i].Weight}
 		} else {
-			emb_matrix := embeddings[schema.Encoders[i].Field]
+			emb_matrix := schema.Embeddings[schema.Encoders[i].Field]
 			row_index := index_of(schema.Encoders[i].Values, val)
 			if row_index == -1 { // not found, use default
 				row_index = index_of(schema.Encoders[i].Values, schema.Encoders[i].Default)
@@ -145,7 +136,7 @@ func encode(schema Schema, embeddings map[string]*mat.Dense, query map[string]st
 	return encoded32
 }
 
-func partition_number(schema Schema, partition_map map[string]int, query map[string]string) int {
+func (schema Schema) partition_number(query map[string]string) int {
 
 	filters := make([]string, len(schema.Filters))
 	for i := 0; i < len(schema.Filters); i++ {
@@ -156,16 +147,16 @@ func partition_number(schema Schema, partition_map map[string]int, query map[str
 		filters[i] = val
 	}
 	partition_key := strings.Join(filters, "~")
-	partition_idx := partition_map[partition_key]
+	partition_idx := schema.PartitionMap[partition_key]
 	return partition_idx
 }
 
-func componentwise_distance(schema Schema, embeddings map[string]*mat.Dense, v1 []float32, v2 []float32) (float32, map[string]float32) {
+func (schema Schema) componentwise_distance(v1 []float32, v2 []float32) (float32, map[string]float32) {
 	breakdown := make(map[string]float32)
 	var total_distance float32
 	total_distance = 0
 	vector_size := 0
-	for field, emb_matrix := range embeddings {
+	for field, emb_matrix := range schema.Embeddings {
 		_, emb_size := emb_matrix.Dims()
 		breakdown[field] = 0
 		for i := 0; i < emb_size; i++ {
@@ -196,25 +187,30 @@ func componentwise_distance(schema Schema, embeddings map[string]*mat.Dense, v1 
 	return total_distance, breakdown
 }
 
-func reconstruct(partitioned_records map[int][]Record, embeddings map[string]*mat.Dense, partition_map map[string]int, schema Schema, id int64, partition_idx int) []float32 {
+func (schema Schema) reconstruct(partitioned_records map[int][]Record, id int64, partition_idx int) []float32 {
 	var reconstructed []float32
 	reconstructed = nil
 	//TODO: Have a more intelligent way of looking up the original record (currently, linear search)
 	for _, record := range partitioned_records[partition_idx] {
 		if record.Id == int(id) {
-			reconstructed = encode(schema, embeddings, record.Values)
+			reconstructed = schema.encode(record.Values)
 			break
 		}
 	}
 	return reconstructed
 }
 
-// func start_server(indices []faiss.IndexImpl, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
-func start_server(partitioned_records map[int][]Record, indices []faiss.Index, embeddings map[string]*mat.Dense, partitions [][]string, partition_map map[string]int, schema Schema, index_labels []string) {
+func faiss_index_from_cache(cache gcache.Cache, index int) faiss.Index {
+	faiss_interface, _ := cache.Get(index)
+	return faiss_interface.(faiss.Index)
+}
+
+func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, partitioned_records map[int][]Record, user_data map[string][]string) {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
 
+	var faiss_index faiss.Index
 	// GET /api/register
 	app.Get("/npy/*", func(c *fiber.Ctx) error {
 		m := read_npy(c.Params("*") + ".npy")
@@ -223,37 +219,43 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 	})
 
 	app.Get("/partitions", func(c *fiber.Ctx) error {
-		ret := make([]PartitionMeta, len(partitions))
-		for i, partition := range partitions {
+		ret := make([]PartitionMeta, len(schema.Partitions))
+		for i, partition := range schema.Partitions {
 			ret[i].Name = partition
-			ret[i].Count = int(indices[i].Ntotal())
-			ret[i].Trained = indices[i].IsTrained()
+			//TODO: fix
+			// ret[i].Count = int(indices[i].Ntotal())
+			// ret[i].Trained = indices[i].IsTrained()
 		}
 		return c.JSON(ret)
 	})
 
 	app.Get("/labels", func(c *fiber.Ctx) error {
-		return c.JSON(index_labels)
+		return c.JSON(item_lookup.id2label)
 	})
 
 	app.Get("/reload_items", func(c *fiber.Ctx) error {
-		partitioned_records, index_labels, _ = pull_item_data(schema, partition_map)
-		for i := 0; i < len(indices); i++ {
-			indices[i].Delete()
-		}
-		index_partitions(schema, indices, embeddings, partitioned_records)
+		partitioned_records, item_lookup, _ = schema.pull_item_data()
+		os.RemoveAll("indices")
+		schema.index_partitions(partitioned_records)
 		return c.SendString("{\"Status\": \"OK\"}")
 	})
 
 	app.Get("/reload_users", func(c *fiber.Ctx) error {
-		//TODO: Reload users
+		var err error
+		if user_data == nil {
+			return c.SendString("User history not available in sources list")
+		}
+		user_data, err = schema.pull_user_data()
+		if err != nil {
+			return c.SendString(err.Error())
+		}
 		return c.SendString("{\"Status\": \"OK\"}")
 	})
 
 	app.Post("/encode", func(c *fiber.Ctx) error {
 		var query map[string]string
 		json.Unmarshal(c.Body(), &query)
-		encoded := encode(schema, embeddings, query)
+		encoded := schema.encode(query)
 		return c.JSON(encoded)
 	})
 
@@ -261,14 +263,15 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		var query map[string]string
 		json.Unmarshal(c.Body(), &query)
 
-		encoded := encode(schema, embeddings, query)
-		partition_idx := partition_number(schema, partition_map, query)
+		encoded := schema.encode(query)
+		partition_idx := schema.partition_number(query)
 		k, err := strconv.Atoi(c.Params("k"))
 		if err != nil {
 			k = 2
 		}
 		//TODO: Resolve code duplication (1)
-		distances, ids, err := indices[partition_idx].Search(encoded, int64(k))
+		faiss_index = faiss_index_from_cache(indices, partition_idx)
+		distances, ids, err := faiss_index.Search(encoded, int64(k))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -278,13 +281,13 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 				continue
 			}
 			next_result := Explanation{
-				Label:    index_labels[int(id)],
+				Label:    item_lookup.id2label[int(id)],
 				Distance: distances[i],
 			}
 			if partitioned_records != nil {
-				reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+				reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
 				if reconstructed != nil {
-					total_distance, breakdown := componentwise_distance(schema, embeddings, encoded, reconstructed)
+					total_distance, breakdown := schema.componentwise_distance(encoded, reconstructed)
 					next_result.Distance = total_distance
 					next_result.Breakdown = breakdown
 				}
@@ -308,14 +311,15 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		if err != nil {
 			k = 2
 		}
-		id := int64(index_of(index_labels, payload.ItemId))
-		partition_idx := partition_number(schema, partition_map, payload.Filters)
-		encoded := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+		id := int64(item_lookup.label2id[payload.ItemId])
+		partition_idx := schema.partition_number(payload.Filters)
+		encoded := schema.reconstruct(partitioned_records, id, partition_idx)
 		if encoded == nil {
 			return c.SendString("{\"Status\": \"Not Found\"}")
 		}
 		//TODO: Resolve code duplication (2)
-		distances, ids, err := indices[partition_idx].Search(encoded, int64(k))
+		faiss_index = faiss_index_from_cache(indices, partition_idx)
+		distances, ids, err := faiss_index.Search(encoded, int64(k))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -325,13 +329,13 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 				continue
 			}
 			next_result := Explanation{
-				Label:    index_labels[int(id)],
+				Label:    item_lookup.id2label[int(id)],
 				Distance: distances[i],
 			}
 			if partitioned_records != nil {
-				reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+				reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
 				if reconstructed != nil {
-					total_distance, breakdown := componentwise_distance(schema, embeddings, encoded, reconstructed)
+					total_distance, breakdown := schema.componentwise_distance(encoded, reconstructed)
 					next_result.Distance = total_distance
 					next_result.Breakdown = breakdown
 				}
@@ -352,19 +356,28 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		if err := c.BodyParser(&payload); err != nil {
 			return err
 		}
-		partition_idx := partition_number(schema, partition_map, payload.Filters)
+		partition_idx := schema.partition_number(payload.Filters)
 		k, err := strconv.Atoi(payload.K)
 		if err != nil {
 			k = 2
 		}
 		item_vecs := make([][]float32, 1)
 		item_vecs[0] = make([]float32, schema.Dim) // zero_vector
+
+		if payload.UserId != "" {
+			//Override user history from the id, if provided
+			if user_data == nil {
+				return c.SendString("User history not available in sources list")
+			}
+			payload.History = user_data[payload.UserId]
+		}
+
 		for _, item_id := range payload.History {
-			id := int64(index_of(index_labels, item_id))
+			id := int64(item_lookup.label2id[item_id])
 			if id == -1 {
 				continue
 			}
-			reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+			reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
 			if reconstructed == nil {
 				continue
 			}
@@ -379,7 +392,8 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 		}
 
 		//TODO: Resolve code duplication (3)
-		distances, ids, err := indices[partition_idx].Search(user_vec, int64(k))
+		faiss_index = faiss_index_from_cache(indices, partition_idx)
+		distances, ids, err := faiss_index.Search(user_vec, int64(k))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -389,13 +403,13 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 				continue
 			}
 			next_result := Explanation{
-				Label:    index_labels[int(id)],
+				Label:    item_lookup.id2label[int(id)],
 				Distance: distances[i],
 			}
 			if partitioned_records != nil {
-				reconstructed := reconstruct(partitioned_records, embeddings, partition_map, schema, id, partition_idx)
+				reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
 				if reconstructed != nil {
-					total_distance, breakdown := componentwise_distance(schema, embeddings, user_vec, reconstructed)
+					total_distance, breakdown := schema.componentwise_distance(user_vec, reconstructed)
 					next_result.Distance = total_distance
 					next_result.Breakdown = breakdown
 				}
@@ -425,7 +439,7 @@ func start_server(partitioned_records map[int][]Record, indices []faiss.Index, e
 	log.Fatal(app.Listen(":3000"))
 }
 
-func read_partitioned_csv(schema Schema, partition_map map[string]int, filename string) (map[int][]Record, []string, error) {
+func (schema Schema) read_partitioned_csv(filename string) (map[int][]Record, ItemLookup, error) {
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -438,17 +452,18 @@ func read_partitioned_csv(schema Schema, partition_map map[string]int, filename 
 	reader.FieldsPerRecord = -1
 	raw_data, err := reader.ReadAll()
 	if err != nil {
-		return nil, nil, err
+		return nil, ItemLookup{}, err
 	}
 
 	header := raw_data[0]
 	id_num := index_of(header, schema.IdCol)
 	if id_num == -1 {
-		return nil, nil, errors.New("id column not found")
+		return nil, ItemLookup{}, errors.New("id column not found")
 	}
 	data := raw_data[1:]
 
 	label2id := make(map[string]int)
+	label2partition := make(map[string]int)
 	partition2records := make(map[int][]Record)
 	for _, row := range data {
 		id, found := label2id[row[id_num]]
@@ -457,7 +472,8 @@ func read_partitioned_csv(schema Schema, partition_map map[string]int, filename 
 			label2id[row[id_num]] = id
 		}
 		query := zip(header, row)
-		partition_idx := partition_number(schema, partition_map, query)
+		partition_idx := schema.partition_number(query)
+		label2partition[row[id_num]] = partition_idx
 		partition2records[partition_idx] = append(partition2records[partition_idx], Record{
 			Label:     row[id_num],
 			Id:        id,
@@ -466,80 +482,169 @@ func read_partitioned_csv(schema Schema, partition_map map[string]int, filename 
 		})
 
 	}
-	//TODO: Do we need index_labels ? can we use the label2id instead?
-	index_labels := make([]string, len(label2id))
+	id2label := make([]string, len(label2id))
 	for lbl, id := range label2id {
-		index_labels[id] = lbl
+		id2label[id] = lbl
 	}
-	return partition2records, index_labels, nil
+	// Build lookups
+	item_lookup := ItemLookup{
+		label2id:        label2id,
+		id2label:        id2label,
+		label2partition: label2partition,
+	}
+	item_lookup.id2label = id2label
+	return partition2records, item_lookup, nil
 }
 
-func index_partitions(schema Schema, indices []faiss.Index, embeddings map[string]*mat.Dense, records map[int][]Record) {
+func (schema Schema) index_partitions(records map[int][]Record) {
+	// os.Mkdir("partitions", os.ModePerm)
+	os.Mkdir("indices", os.ModePerm)
 	var wg sync.WaitGroup
 	for partition_idx, partitioned_records := range records {
+		if len(partitioned_records) < 10 {
+			continue
+		}
+		if _, err := os.Stat(fmt.Sprintf("indices/%d", partition_idx)); !os.IsNotExist(err) {
+			continue
+		}
+
 		wg.Add(1)
-		go func(i int, recs []Record) {
+		go func(partition_idx int, partitioned_records []Record) {
+			// partition_dir := fmt.Sprintf("partitions/%d", i)
+			// os.Mkdir(partition_dir, os.ModePerm)
 			defer wg.Done()
+			// index_type := "IDMap,LSH"
+			// index_type := "IDMap,ITQ,LSHt"
+			// n_clusters := 128
+			// if len(recs) < n_clusters {
+			// 	n_clusters = len(recs)
+			// }
+			var faiss_index faiss.Index
+			// https://github.com/facebookresearch/faiss/wiki/The-index-factory
+			// index_type := fmt.Sprintf("IVF%d,Flat", n_clusters)
 			if strings.ToLower(schema.Metric) == "ip" {
-				// indices[i], _ = faiss.NewIndexFlatIP(schema.Dim)
-				indices[i], _ = faiss.IndexFactory(schema.Dim, "IVF10,Flat", faiss.MetricInnerProduct)
+				faiss_index, _ = faiss.IndexFactory(schema.Dim, schema.IndexFactory, faiss.MetricInnerProduct)
 			}
 			if strings.ToLower(schema.Metric) == "l2" {
-				// indices[i], _ = faiss.NewIndexFlatL2(schema.Dim)
-				indices[i], _ = faiss.IndexFactory(schema.Dim, "IVF10,Flat", faiss.MetricL2)
+				faiss_index, _ = faiss.IndexFactory(schema.Dim, schema.IndexFactory, faiss.MetricL2)
 			}
 			if strings.ToLower(schema.Metric) == "l1" {
-				// indices[i], _ = faiss.NewIndexFlatL1(schema.Dim)
-				indices[i], _ = faiss.IndexFactory(schema.Dim, "IVF10,Flat", faiss.MetricL1)
+				faiss_index, _ = faiss.IndexFactory(schema.Dim, schema.IndexFactory, faiss.MetricL1)
 			}
-			xb := make([]float32, schema.Dim*len(recs))
-			ids := make([]int64, len(recs))
-			for i, record := range recs {
-				encoded := encode(schema, embeddings, record.Values)
+			xb := make([]float32, schema.Dim*len(partitioned_records))
+			ids := make([]int64, len(partitioned_records))
+			for i, record := range partitioned_records {
+				encoded := schema.encode(record.Values)
+				// go write_npy(fmt.Sprintf("%s/%d", partition_dir, record.Id), encoded)
 				for j, v := range encoded {
 					xb[i*schema.Dim+j] = v
 					ids[i] = int64(record.Id)
 				}
 			}
-			indices[i].Train(xb)
-			fmt.Println("IsTrained(", i, ") =", indices[i].IsTrained())
-			indices[i].AddWithIDs(xb, ids)
-			fmt.Println("IsTrained(", i, ") =", indices[i].IsTrained())
+			faiss_index.Train(xb)
+			faiss_index.AddWithIDs(xb, ids)
+			faiss_index.Train(xb)
+			faiss.WriteIndex(faiss_index, fmt.Sprintf("indices/%d", partition_idx))
+			faiss_index.Delete()
+
 		}(partition_idx, partitioned_records)
 	}
 	wg.Wait()
 }
 
-func pull_item_data(schema Schema, partition_map map[string]int) (map[int][]Record, []string, error) {
-	var index_labels []string
+func (schema Schema) pull_item_data() (map[int][]Record, ItemLookup, error) {
+	var item_lookup ItemLookup
 	var partitioned_records map[int][]Record
 	var err error
 	found_item_source := false
 	for _, src := range schema.Sources {
 		if strings.ToLower(src.Record) == "items" {
 			if src.Type == "csv" {
-				partitioned_records, index_labels, err = read_partitioned_csv(schema, partition_map, src.Path)
+				partitioned_records, item_lookup, err = schema.read_partitioned_csv(src.Path)
 				if err != nil {
-					return nil, nil, err
+					return nil, ItemLookup{}, err
 				}
 				found_item_source = true
 			}
 		}
 	}
 	if !found_item_source {
-		return nil, nil, errors.New("no item source found")
+		return nil, ItemLookup{}, errors.New("no item source found")
 	}
-	return partitioned_records, index_labels, err
+	return partitioned_records, item_lookup, err
 }
 
-func main() {
-	base_dir := "."
-	if len(os.Args) > 1 {
-		base_dir = os.Args[1]
+func (schema Schema) pull_user_data() (map[string][]string, error) {
+	var user_data map[string][]string
+	var err error
+	found_user_source := false
+	for _, src := range schema.Sources {
+		if strings.ToLower(src.Record) == "users" {
+			if src.Type == "csv" {
+				user_data, err = schema.read_user_csv(src.Path, src.Query)
+				if err != nil {
+					return nil, err
+				}
+				found_user_source = true
+			}
+		}
+	}
+	if !found_user_source {
+		return nil, errors.New("no user source found")
+	}
+	return user_data, err
+}
+
+func (schema Schema) read_user_csv(filename string, history_col string) (map[string][]string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	// reader.Comma = '\t'
+	reader.FieldsPerRecord = -1
+	raw_data, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
 	}
 
+	header := raw_data[0]
+	id_num := index_of(header, schema.IdCol)
+	if id_num == -1 {
+		return nil, errors.New("id column not found")
+	}
+
+	history_num := index_of(header, history_col)
+	if id_num == -1 {
+		return nil, errors.New("history column not found")
+	}
+	data := raw_data[1:]
+
+	user_data := make(map[string][]string)
+	for _, row := range data {
+		user_id := row[id_num]
+		user_data[user_id] = strings.Split(row[history_num], ",")
+	}
+
+	return user_data, nil
+}
+
+func read_schema(schema_file string) Schema {
+	jsonFile, err := os.Open(schema_file)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer jsonFile.Close()
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	var schema Schema
+	json.Unmarshal(byteValue, &schema)
+	if schema.IndexFactory == "" {
+		schema.IndexFactory = "IDMap,LSH"
+	}
 	embeddings := make(map[string]*mat.Dense)
-	schema, partitions := read_schema(base_dir + "/schema.json")
 	dim := 0
 	for i := 0; i < len(schema.Encoders); i++ {
 		encoder_type := strings.ToLower(schema.Encoders[i].Type)
@@ -553,36 +658,64 @@ func main() {
 		}
 	}
 	schema.Dim = dim
+	schema.Embeddings = embeddings
+
+	values := make([][]string, len(schema.Filters))
+	for i := 0; i < len(schema.Filters); i++ {
+		values[i] = schema.Filters[i].Values
+	}
+	partitions := itertools_product(values...)
+
+	schema.Partitions = partitions
+
 	partition_map := make(map[string]int)
-	// indices := make([]faiss.IndexImpl, len(partitions))
-	indices := make([]faiss.Index, len(partitions))
 	for i := 0; i < len(partitions); i++ {
 		key := strings.Join(partitions[i], "~")
 		partition_map[key] = i
 	}
-	var partitioned_records map[int][]Record
+	schema.PartitionMap = partition_map
 
-	//TODO: Read from CLI
-	LOAD_INDEX := false
-	var index_labels []string
-	if LOAD_INDEX {
-		index_labels = read_index_labels(base_dir + "/index_labels.json")
-		for i := 0; i < len(partitions); i++ {
-			ind, err := faiss.ReadIndex(base_dir+"/"+strconv.Itoa(i), 0)
-			indices[i] = *ind
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		partitioned_records = nil
-	} else {
-		var err error
-		partitioned_records, index_labels, err = pull_item_data(schema, partition_map)
-		if err != nil {
-			log.Fatal(err)
-		}
-		index_partitions(schema, indices, embeddings, partitioned_records)
+	return schema
+}
+
+func main() {
+	base_dir := "."
+	if len(os.Args) > 1 {
+		base_dir = os.Args[1]
 	}
 
-	start_server(partitioned_records, indices, embeddings, partitions, partition_map, schema, index_labels)
+	schema := read_schema(base_dir + "/schema.json")
+
+	indices := gcache.New(32).
+		LFU().
+		LoaderFunc(func(key interface{}) (interface{}, error) {
+			ind, err := faiss.ReadIndex(fmt.Sprintf("%s/indices/%d", base_dir, key), 0)
+			return *ind, err
+		}).
+		EvictedFunc(func(key, value interface{}) {
+			value.(faiss.Index).Delete()
+		}).
+		Build()
+
+	// indices := make([]faiss.IndexImpl, len(partitions))
+	// indices := make([]faiss.Index, len(partitions))
+
+	var partitioned_records map[int][]Record
+	var user_data map[string][]string
+
+	//TODO: Read from CLI
+	var item_lookup ItemLookup
+	var err error
+	partitioned_records, item_lookup, err = schema.pull_item_data()
+	if err != nil {
+		log.Fatal(err)
+	}
+	user_data, err = schema.pull_user_data()
+	if err != nil {
+		log.Println(err)
+	}
+
+	schema.index_partitions(partitioned_records)
+
+	start_server(schema, indices, item_lookup, partitioned_records, user_data)
 }

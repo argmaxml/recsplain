@@ -1,4 +1,6 @@
 *.npy
+partitions/
+indices/
 __debug_bin
 schema.json
 index_labels.json
