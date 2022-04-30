@@ -558,6 +558,28 @@ func (schema Schema) pull_item_data() (map[int][]Record, ItemLookup, error) {
 	return partitioned_records, item_lookup, err
 }
 
+func (schema Schema) pull_user_data() (map[int][]Record, ItemLookup, error) {
+	var item_lookup ItemLookup
+	var partitioned_records map[int][]Record
+	var err error
+	found_user_source := false
+	for _, src := range schema.Sources {
+		if strings.ToLower(src.Record) == "users" {
+			if src.Type == "csv" {
+				partitioned_records, item_lookup, err = schema.read_partitioned_csv(src.Path)
+				if err != nil {
+					return nil, ItemLookup{}, err
+				}
+				found_user_source = true
+			}
+		}
+	}
+	if !found_user_source {
+		return nil, ItemLookup{}, errors.New("no user source found")
+	}
+	return partitioned_records, item_lookup, err
+}
+
 func read_schema(schema_file string) Schema {
 	jsonFile, err := os.Open(schema_file)
 	if err != nil {
