@@ -436,7 +436,7 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 		})
 	})
 
-	log.Fatal(app.Listen(":3000"))
+	log.Fatal(app.Listen(":8088"))
 }
 
 func (schema Schema) read_partitioned_csv(filename string) (map[int][]Record, ItemLookup, error) {

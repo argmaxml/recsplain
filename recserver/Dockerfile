@@ -29,5 +29,5 @@ WORKDIR /root
 COPY schema.json /root/
 COPY *.npy /root/
 COPY *.csv /root/
-EXPOSE 3000
-CMD [ "./run.sh" ]
+EXPOSE 8088
+CMD [ "./recserver" ]
