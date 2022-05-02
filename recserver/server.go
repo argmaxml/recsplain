@@ -259,15 +259,31 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 		return c.JSON(encoded)
 	})
 
-	app.Post("/query/:k?", func(c *fiber.Ctx) error {
-		var query map[string]string
-		json.Unmarshal(c.Body(), &query)
+	app.Post("/item_query/:k?", func(c *fiber.Ctx) error {
+		payload := struct {
+			ItemId string            `json:"id"`
+			Query  map[string]string `json:"query"`
+		}{}
 
-		encoded := schema.encode(query)
-		partition_idx := schema.partition_number(query)
+		if err := c.BodyParser(&payload); err != nil {
+			return err
+		}
 		k, err := strconv.Atoi(c.Params("k"))
 		if err != nil {
 			k = 2
+		}
+		var partition_idx int
+		var encoded []float32
+		if payload.ItemId != "" {
+			id := int64(item_lookup.label2id[payload.ItemId])
+			partition_idx = item_lookup.label2partition[payload.ItemId]
+			encoded = schema.reconstruct(partitioned_records, id, partition_idx)
+			if encoded == nil {
+				return c.SendString("{\"Status\": \"Not Found\"}")
+			}
+		} else {
+			partition_idx = schema.partition_number(payload.Query)
+			encoded = schema.encode(payload.Query)
 		}
 		//TODO: Resolve code duplication (1)
 		faiss_index = faiss_index_from_cache(indices, partition_idx)
@@ -297,57 +313,8 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 		return c.JSON(retrieved)
 	})
 
-	app.Post("/item_query", func(c *fiber.Ctx) error {
-		payload := struct {
-			K       string            `json:"k"`
-			ItemId  string            `json:"id"`
-			Filters map[string]string `json:"filters"`
-		}{}
-
-		if err := c.BodyParser(&payload); err != nil {
-			return err
-		}
-		k, err := strconv.Atoi(payload.K)
-		if err != nil {
-			k = 2
-		}
-		id := int64(item_lookup.label2id[payload.ItemId])
-		partition_idx := schema.partition_number(payload.Filters)
-		encoded := schema.reconstruct(partitioned_records, id, partition_idx)
-		if encoded == nil {
-			return c.SendString("{\"Status\": \"Not Found\"}")
-		}
-		//TODO: Resolve code duplication (2)
-		faiss_index = faiss_index_from_cache(indices, partition_idx)
-		distances, ids, err := faiss_index.Search(encoded, int64(k))
-		if err != nil {
-			log.Fatal(err)
-		}
-		retrieved := make([]Explanation, 0)
-		for i, id := range ids {
-			if id == -1 {
-				continue
-			}
-			next_result := Explanation{
-				Label:    item_lookup.id2label[int(id)],
-				Distance: distances[i],
-			}
-			if partitioned_records != nil {
-				reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
-				if reconstructed != nil {
-					total_distance, breakdown := schema.componentwise_distance(encoded, reconstructed)
-					next_result.Distance = total_distance
-					next_result.Breakdown = breakdown
-				}
-			}
-			retrieved = append(retrieved, next_result)
-		}
-		return c.JSON(retrieved)
-	})
-
 	app.Post("/user_query/:k?", func(c *fiber.Ctx) error {
 		payload := struct {
-			K       string            `json:"k"`
 			UserId  string            `json:"id"`
 			History []string          `json:"history"`
 			Filters map[string]string `json:"filters"`
@@ -357,7 +324,7 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 			return err
 		}
 		partition_idx := schema.partition_number(payload.Filters)
-		k, err := strconv.Atoi(payload.K)
+		k, err := strconv.Atoi(c.Params("k"))
 		if err != nil {
 			k = 2
 		}
@@ -391,7 +358,7 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 			}
 		}
 
-		//TODO: Resolve code duplication (3)
+		//TODO: Resolve code duplication (2)
 		faiss_index = faiss_index_from_cache(indices, partition_idx)
 		distances, ids, err := faiss_index.Search(user_vec, int64(k))
 		if err != nil {
