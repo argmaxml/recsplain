@@ -24,7 +24,7 @@ RUN cmake -B build . -DFAISS_ENABLE_GPU=OFF -DBUILD_SHARED_LIBS=ON -DFAISS_ENABL
 WORKDIR /root
 RUN git clone https://github.com/argmaxml/recsplain
 WORKDIR /root/recsplain/recserver
-RUN go build . && mv recserver /root/ && cp run.sh /root/
+RUN go build . && mv recserver /root/ && mkdir /root/views && cp run.sh views/index.html /root/views/ && cp run.sh /root/
 WORKDIR /root
 COPY schema.json /root/
 COPY *.npy /root/
