@@ -111,54 +111,22 @@ document.addEventListener("DOMContentLoaded", function(event) {
                 <h1>{{.Headline}}</h1>
             </div> 
             <div class="col-md-4">
-                <h2>Query</h2>
-                <form action="/query/{k}" method="POST">
-                    {{range .Fields}}
-                    <div class="form-group">
-                        <label for="query_{{.}}">{{.}}</label>
-                        <input type="text" id="query_{{.}}" name="{{.}}" class="form-control" placeholder="{{.}}">
-                    </div>
-                    {{end}}
-                    <div class="form-group">
-                        <label for="query_k">k</label>
-                        <input type="text" id="query_k" name="k" class="form-control" placeholder="k" value="2">
-                    </div>
-                    <button type="submit" class="btn btn-primary">Submit</button>
-                </form>
-            </div>
-            <div class="col-md-4">
-                <h2>Encode</h2>
-                <form action="/encode" method="POST">
-                    {{range .Fields}}
-                    <div class="form-group">
-                        <label for="encode_{{.}}">{{.}}</label>
-                        <input type="text" id="encode_{{.}}" name="{{.}}" class="form-control" placeholder="{{.}}">
-                    </div>
-                    {{end}}
-                    <button type="submit" class="btn btn-primary">Submit</button>
-                </form>
-            </div>
-            <div class="col-md-4">
-                <h2>Metadata</h2>
-                <form action="/partitions" method="GET">
-                    <button type="submit" class="btn btn-primary">Partitions</button>
-                </form>
-                <form action="/labels" method="GET">
-                    <button type="submit" class="btn btn-primary">Labels</button>
-                </form>
-            </div>
-            <div class="col-md-4">
                 <h2>Item Query</h2>
-                <form action="/item_query/" method="POST">
-                    {{range .Filters}}
-                    <div class="form-group">
-                        <label for="item_{{.}}">{{.}}</label>
-                        <input type="text" id="item_{{.}}" name="filters.{{.}}" class="form-control" placeholder="{{.}}">
-                    </div>
-                    {{end}}
+                <form action="/item_query/{k}" method="POST">
                     <div class="form-group">
                         <label for="item_id">Item Id</label>
                         <input type="text" id="item_id" name="id" class="form-control" placeholder="Id">
+                        <a class="btn btn-primary" data-bs-toggle="collapse" href="#collapse_item" role="button" aria-expanded="false" aria-controls="collapse_item">
+                            Manually enter item
+                          </a>
+                    </div>
+                    <div class="collapse" id="collapse_item">
+                        {{range .Fields}}
+                        <div class="form-group">
+                            <label for="item_{{.}}">{{.}}</label>
+                            <input type="text" id="item_{{.}}" name="query.{{.}}" class="form-control" placeholder="{{.}}">
+                        </div>
+                        {{end}}
                     </div>
                     <div class="form-group">
                         <label for="item_k">k</label>
@@ -169,7 +137,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
             </div>
             <div class="col-md-4">
                 <h2>User Query</h2>
-                <form action="/user_query" method="POST">
+                <form action="/user_query/{k}" method="POST">
                     {{range .Filters}}
                     <div class="form-group">
                         <label for="user_{{.}}">{{.}}</label>
@@ -179,18 +147,23 @@ document.addEventListener("DOMContentLoaded", function(event) {
                     <div class="form-group">
                         <label for="user_id">User Id</label>
                         <input type="text" id="user_id" name="id" class="form-control" placeholder="Id">
+                        <a class="btn btn-primary" data-bs-toggle="collapse" href="#collapse_user" role="button" aria-expanded="false" aria-controls="collapse_user">
+                            Manually enter user history
+                          </a>
+                    </div>
+                    <div class="collapse" id="collapse_item">
+                        <div class="form-group">
+                            <label for="user_history">Item history (one item per row)</label>
+                            <input type="text" name="history[]" class="form-control">
+                            <input type="text" name="history[]" class="form-control">
+                            <input type="text" name="history[]" class="form-control">
+                            <input type="text" name="history[]" class="form-control">
+                            <input type="text" name="history[]" class="form-control">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="user_k">k</label>
                         <input type="text" id="user_k" name="k" class="form-control" placeholder="k" value="2">
-                    </div>
-                    <div class="form-group">
-                        <label for="user_history">Item history (one item per row)</label>
-                        <input type="text" name="history[]" class="form-control">
-                        <input type="text" name="history[]" class="form-control">
-                        <input type="text" name="history[]" class="form-control">
-                        <input type="text" name="history[]" class="form-control">
-                        <input type="text" name="history[]" class="form-control">
                     </div>
                     <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
