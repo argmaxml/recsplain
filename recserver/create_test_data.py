@@ -7,6 +7,7 @@ embeddings = np.eye(dim)
 schema = {
     "id_col": "id",
     "metric": "l2",
+    "index_factory":"IDMap,LSH",
     "filters":[{"field": "country", "values": ["EU", "US"]}],
     "encoders":[{"field": "state",  "values": ["a", "b", "c", "d", "e"], "type":"np", "weight":1, "npy": "state.npy"}],
     "sources":[{"record": "items", "type": "csv", "path": "test.csv"}],

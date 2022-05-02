@@ -28,7 +28,8 @@ function json_submit(event, form) {
     const elements = form.querySelectorAll("input, select, textarea");
     for (let i = 0; i < elements.length; ++i) {
         const name = elements[i].name;
-        const value = elements[i].value;
+        const is_checkbox = elements[i].type.toLowerCase()=="checkbox";
+        const value = is_checkbox ? elements[i].checked : elements[i].value;
         if (!name) continue;
         
         pre_url=url;
@@ -132,6 +133,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
                         <label for="item_k">k</label>
                         <input type="text" id="item_k" name="k" class="form-control" placeholder="k" value="2">
                     </div>
+                    <input type="checkbox" id="item_explain" name="explain" class="form-check-input"> Explaination &nbsp;
                     <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
             </div>
@@ -165,6 +167,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
                         <label for="user_k">k</label>
                         <input type="text" id="user_k" name="k" class="form-control" placeholder="k" value="2">
                     </div>
+                    <input type="checkbox" id="user_explain" name="explain" class="form-check-input"> Explaination &nbsp;
                     <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
             </div>

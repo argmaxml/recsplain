@@ -155,35 +155,45 @@ func (schema Schema) componentwise_distance(v1 []float32, v2 []float32) (float32
 	breakdown := make(map[string]float32)
 	var total_distance float32
 	total_distance = 0
-	vector_size := 0
-	for field, emb_matrix := range schema.Embeddings {
-		_, emb_size := emb_matrix.Dims()
-		breakdown[field] = 0
-		for i := 0; i < emb_size; i++ {
-			if strings.ToLower(schema.Metric) == "l1" {
-				if v1[i] > v2[i] {
-					breakdown[field] += (v1[i] - v2[i])
-				} else {
-					breakdown[field] += (v2[i] - v1[i])
+	offset := 0
+	for _, encoder := range schema.Encoders {
+		if contains([]string{"np", "numpy", "npy"}, strings.ToLower(encoder.Type)) {
+			emb_matrix := schema.Embeddings[encoder.Field]
+			_, emb_size := emb_matrix.Dims()
+			breakdown[encoder.Field] = 0
+			for i := 0; i < emb_size; i++ {
+				if strings.ToLower(schema.Metric) == "l1" {
+					if v1[offset+i] > v2[offset+i] {
+						breakdown[encoder.Field] += (v1[offset+i] - v2[offset+i])
+					} else {
+						breakdown[encoder.Field] += (v2[offset+i] - v1[offset+i])
+					}
 				}
+				if strings.ToLower(schema.Metric) == "l2" {
+					breakdown[encoder.Field] += (v1[offset+i] - v2[offset+i]) * (v1[offset+i] - v2[offset+i])
+				}
+				//TODO: Support InnerProduct
+				total_distance += breakdown[encoder.Field]
 			}
 			if strings.ToLower(schema.Metric) == "l2" {
-				breakdown[field] += (v1[i] - v2[i]) * (v1[i] - v2[i])
+				breakdown[encoder.Field] = float32(math.Sqrt(float64(breakdown[encoder.Field])))
 			}
-			//TODO: Support InnerProduct
-			total_distance += breakdown[field]
+			breakdown[encoder.Field] /= float32(emb_size)
+			offset += emb_size
+		} else { //numeric field
+			if v1[offset] > v2[offset] {
+				breakdown[encoder.Field] += (v1[offset] - v2[offset])
+			} else {
+				breakdown[encoder.Field] += (v2[offset] - v1[offset])
+			}
+			offset += 1
 		}
-		if strings.ToLower(schema.Metric) == "l2" {
-			breakdown[field] = float32(math.Sqrt(float64(breakdown[field])))
-		}
-		breakdown[field] /= float32(emb_size)
-		vector_size += emb_size
 
 	}
 	if strings.ToLower(schema.Metric) == "l2" {
 		total_distance = float32(math.Sqrt(float64(total_distance)))
 	}
-	total_distance /= float32(vector_size)
+	total_distance /= float32(schema.Dim)
 	return total_distance, breakdown
 }
 
@@ -261,8 +271,9 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 
 	app.Post("/item_query/:k?", func(c *fiber.Ctx) error {
 		payload := struct {
-			ItemId string            `json:"id"`
-			Query  map[string]string `json:"query"`
+			ItemId  string            `json:"id"`
+			Query   map[string]string `json:"query"`
+			Explain bool              `json:"explain"`
 		}{}
 
 		if err := c.BodyParser(&payload); err != nil {
@@ -300,7 +311,7 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 				Label:    item_lookup.id2label[int(id)],
 				Distance: distances[i],
 			}
-			if partitioned_records != nil {
+			if (payload.Explain) && (partitioned_records != nil) {
 				reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
 				if reconstructed != nil {
 					total_distance, breakdown := schema.componentwise_distance(encoded, reconstructed)
@@ -318,6 +329,7 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 			UserId  string            `json:"id"`
 			History []string          `json:"history"`
 			Filters map[string]string `json:"filters"`
+			Explain bool              `json:"explain"`
 		}{}
 
 		if err := c.BodyParser(&payload); err != nil {
@@ -373,7 +385,7 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 				Label:    item_lookup.id2label[int(id)],
 				Distance: distances[i],
 			}
-			if partitioned_records != nil {
+			if (payload.Explain) && (partitioned_records != nil) {
 				reconstructed := schema.reconstruct(partitioned_records, id, partition_idx)
 				if reconstructed != nil {
 					total_distance, breakdown := schema.componentwise_distance(user_vec, reconstructed)
@@ -480,23 +492,24 @@ func (schema Schema) index_partitions(records map[int][]Record) {
 			// partition_dir := fmt.Sprintf("partitions/%d", i)
 			// os.Mkdir(partition_dir, os.ModePerm)
 			defer wg.Done()
-			// index_type := "IDMap,LSH"
-			// index_type := "IDMap,ITQ,LSHt"
-			// n_clusters := 128
-			// if len(recs) < n_clusters {
-			// 	n_clusters = len(recs)
-			// }
 			var faiss_index faiss.Index
 			// https://github.com/facebookresearch/faiss/wiki/The-index-factory
-			// index_type := fmt.Sprintf("IVF%d,Flat", n_clusters)
+			index_factory := schema.IndexFactory
+			if schema.IndexFactory == "" { //auto compute
+				n_clusters := 128
+				if len(partitioned_records) < n_clusters {
+					n_clusters = len(partitioned_records)
+				}
+				index_factory = fmt.Sprintf("IVF%d,Flat", n_clusters)
+			}
 			if strings.ToLower(schema.Metric) == "ip" {
-				faiss_index, _ = faiss.IndexFactory(schema.Dim, schema.IndexFactory, faiss.MetricInnerProduct)
+				faiss_index, _ = faiss.IndexFactory(schema.Dim, index_factory, faiss.MetricInnerProduct)
 			}
 			if strings.ToLower(schema.Metric) == "l2" {
-				faiss_index, _ = faiss.IndexFactory(schema.Dim, schema.IndexFactory, faiss.MetricL2)
+				faiss_index, _ = faiss.IndexFactory(schema.Dim, index_factory, faiss.MetricL2)
 			}
 			if strings.ToLower(schema.Metric) == "l1" {
-				faiss_index, _ = faiss.IndexFactory(schema.Dim, schema.IndexFactory, faiss.MetricL1)
+				faiss_index, _ = faiss.IndexFactory(schema.Dim, index_factory, faiss.MetricL1)
 			}
 			xb := make([]float32, schema.Dim*len(partitioned_records))
 			ids := make([]int64, len(partitioned_records))
@@ -608,9 +621,6 @@ func read_schema(schema_file string) Schema {
 
 	var schema Schema
 	json.Unmarshal(byteValue, &schema)
-	if schema.IndexFactory == "" {
-		schema.IndexFactory = "IDMap,LSH"
-	}
 	embeddings := make(map[string]*mat.Dense)
 	dim := 0
 	for i := 0; i < len(schema.Encoders); i++ {
