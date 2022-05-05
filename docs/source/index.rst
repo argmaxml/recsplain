@@ -3,25 +3,84 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Index
-===========
+Recsplain System 🦖 
+==========================================
 
-TRecSys is a tabular similarity search server. Install it into your project to have your very own recommendation engine. 
+The Recsplain System makes recommendations and explains them. 
 
-You can:
+Install it in your app, use it with your data, and customize it how you want.
 
-- customize the filters, encoders, and user encoders for the similarity search server.
-- index a list of items based on feature values
-- search by item to get the other items most similar to it 
-- save your custom similarity search models to disk
-- load your custom similarity search models from disk
+Explainable Recommendations
+---------------------------------------------------------
+
+Here is an example recommendation with explanations. 
+
+The example query is for items in the US that are low in price and in the meat category. 
+
+You can see the request and response in the image below. 
+
+.. image:: images/explanations.png
+
+The response body in the image above contains the recommendations and explanations.
+
+The recommendations are in the ids array. The ids are ordered by index position from most to least recommended. The lowest index position is the most recommended.
+
+The explanations are in the distance and explanations arrays. The values in those arrays correspond to the values in the ids array by index position.
+
+How It Works 
+---------------------------------------------------------
+
+Recsplain turns items into weighted feature vectors.
+
+.. image:: images/diagram-1.png
+
+The the system compares feature vectors to one another to calculate how similar they are.
+
+ .. image:: images/diagram-3.png
+
+Recsplain can compare feature vectors using different encoders. The encoder type dictates how items are compared to one another.
+
 .. note:: 
-   TRecSys is created by **argmaxml**. We are focused on creating software the enables you to integrate recommendation engines into your product to increase customer engagement.
+   Check out our built-in :doc:`encoders-list`.
 
-Check out the :ref:`welcome` for further information.
 
+Field Types & Schema
+---------------------------------------------------------
+
+Configure the Recsplain system to customize how you want it to compare items for similarity.
+
+Here is an example configuration.
+
+.. literalinclude:: init_schema_example.py
+  :language: python
+	
+1. Filter Fields
+
+The filter fields are hard filters. They separate items into different partitions. Only items within the same partition are compared to one another.
+ 
+The example above creates two partitions. One for US items and another for EU.
+
+2. Encoder Fields
+
+The encoder fields are soft filters for fuzzy matching. They determine how item features are compared within a partition.
+ 
+The example above selects the one-hot encoder for each of item feature, price and catgory.
+
+.. note:: 
+   Learn more about the one-hot and other available :doc:`encoders-list`.
+
+3. User Encoders
+
+When recommending items for a user, Recsplain has special encoders you should use.
+
+ .. image:: images/diagram-2.png
+
+.. note:: 
+   Learn more about the one-hot and other available :doc:`encoders-list`.
+
+.. note:: 
+   **ArgMaxML** created Recsplain. We are focused on creating software the enables you to integrate recommendation engines into your product to increase customer engagement.
 
 .. toctree::
-   :maxdepth: 2
-
-   Welcome <welcome>
+   :maxdepth: 0
+   :titlesonly:

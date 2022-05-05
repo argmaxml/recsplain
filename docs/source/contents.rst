@@ -3,4 +3,5 @@
    
    Welcome <index>
    Get Started <get-started>
-   Using TRecSys <using-trecsys>
+   Saving and Loading Models <saving-and-loading>
+   Spinning Up A Server <spinning-up>

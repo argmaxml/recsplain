@@ -1,34 +1,48 @@
 Installation
 ================
 
-Using ``pip``
+Install the Recplain system and then use it as a web server or import it into your code and call the methods directly.
+
+pip install
 ----------------
 
-You can install TRecSys in several ways using ``pip``. Choose one of the following.
+Install the Recsplain system from PyPI using ``pip``. 
 
-Install from PyPl.
+.. code-block:: python
 
-.. code::
-    pip install TRecSys
+    pip install recsplain
 
-Install from GitHub.
+After you install the package, use it by either:
 
-.. code::
-    pip install git+https://github.com/argmaxml/TRecs
+- Running a server to call the functions from the rest API or 
+- By importing into your code using Python bindings
 
 
 Run Server
---------------
+----------------
 
-After installing, run a server.
-.. code::
-    python -m TRecSys
+To use the system as a web server, enter the following command in your terminal.
+
+.. code-block:: python
+
+    python -m recsplain
 
 Browse to http://127.0.0.1:5000/docs.
 
 You should see a swagger interface for the REST API.
 
-The package is accessible via rest or python bindings.
+Import
+----------------
+
+Instead of using the system as a web server, you can import the package into your code to call the methods directly.
+
+Import the package using the following import statement.
+
+.. code-block:: python
+
+    import recssplain as rx
+
+
 
 
 
