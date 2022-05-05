@@ -22,7 +22,7 @@ except:
     def free_memory():
         gc.collect()
 sys.path.append("../src")
-from TRecSys.strategies import AvgUserStrategy
+from .strategies import AvgUserStrategy
 import pandas as pd
 
 strategy = None
