@@ -118,10 +118,15 @@ def get_schema():
 async def api_index(data: Union[List[Dict[str, str]], str]):
     if not strategy.schema_initialized():
         return {"status": "error", "message": "Schema not initialized"}
-    if type(data)==str:
+    if type(data)==str and data.endswith(".json"):
         # read data remotely
         with open(data, 'r') as f:
             data = json.load(f)
+    elif type(data)==str and data.endswith(".csv"):
+        # read csv remotely
+        data = pd.read_csv(data)
+        affected_partitions = strategy.index_dataframe(data)
+        return {"status": "OK", "affected_partitions": affected_partitions}
     errors, affected_partitions = strategy.index(data)
     if any(errors):
         return {"status": "error", "items": errors}
