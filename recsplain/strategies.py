@@ -7,14 +7,14 @@ src = Path(__file__).absolute().parent
 sys.path.append(str(src))
 from encoders import PartitionSchema
 from joblib import delayed, Parallel
-from similarity_helpers import parse_server_name, LazyHnsw
+from similarity_helpers import parse_server_name, FlatFaiss
 
 class BaseStrategy:
     __slots__ = ["schema", "partitions","index_labels", "model_dir", "IndexEngine", "engine_params"]
     def __init__(self, model_dir=None, similarity_engine=None ,engine_params={}):
         if similarity_engine is None:
-            self.IndexEngine = LazyHnsw
-            self.engine_params = {"max_elements":10240,"ef_construction": 2000, "M": 16}
+            self.IndexEngine = FlatFaiss
+            self.engine_params = {}
         else:
             self.IndexEngine = parse_server_name(similarity_engine)
             self.engine_params = engine_params
