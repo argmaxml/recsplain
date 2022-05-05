@@ -39,7 +39,7 @@ class BaseStrategy:
         for datum in data:
             try:
                 vecs.append((self.schema.partition_num(datum), self.schema.encode(datum), datum[self.schema.id_col]))
-            except KeyError as e:
+            except Exception as e:
                 errors.append((datum, str(e)))
         vecs = sorted(vecs, key=at(0))
         affected_partitions = 0
