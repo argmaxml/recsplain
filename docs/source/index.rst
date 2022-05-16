@@ -28,23 +28,22 @@ The request is based on a search item that has three features. It is a US-based 
 
 The response body in the image above contains the recommendations and explanations.
 
-.. literalinclude:: item_query_response_2.py
-  :language: python
-
 The ids are ordered by index position from most to least recommended. The lowest index position is the most recommended.
-
-In the example, the system recommends item 1 more than item 2 
 
 The explanations are in the distance and explanations arrays. The values in those arrays correspond to the values in the ids array by index position.
 
-The distances explain item similarity based on all features and weights. The explanations provide more granularity by giving you distances for each feature.
+The distances explain item similarity based on all features and weights. The explanations provide distances for each feature.
 
-Lower values corresponds to greater similarity. 
+Lower values correspond to greater similarity. 
 
-The system recommends item 1 more than item 2 because item 1 has a distance of 0 and item 2 has distance of 2.
+.. literalinclude:: item_query_response_2.py
+  :language: python
+
+In the example, the system recommends item 1 more than item 2.
+
+The system recommends item 1 more because item 1 has a lower distance of 0 compared to the item 2 distance of 2.
 
 Item 1 has a lower overall distance because it has a lower distance for price than B and they are equal in category. 
-
 
 How It Works 
 ---------------------------------------------------------
