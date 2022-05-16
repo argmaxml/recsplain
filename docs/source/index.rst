@@ -49,7 +49,7 @@ For user preferences, Recsplain turns the user into an item feature vector based
 
 .. image:: images/diagram-2.png
 
-The system compares the user feature vector to the item features vectors to calculate how similar the items are those the items in the user's history.
+The system compares the user feature vector to the item feature vectors to calculate how similar the items are those the items in the user's history.
 
 .. image:: images/diagram-3.png
 
@@ -85,7 +85,6 @@ The example above selects the one-hot encoder for each of item feature, price an
 
 When recommending items for a user, Recsplain has special encoders you should use.
 
- .. image:: images/diagram-2.png
 
 .. note:: 
    Learn more about the one-hot and other available :doc:`encoders-list`.
