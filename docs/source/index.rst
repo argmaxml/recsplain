@@ -15,23 +15,36 @@ Install it in your app, use it with your data, and customize it how you want.
 Explainable Recommendations
 ---------------------------------------------------------
 
-Here is an example of an item similarity search. The search is for items in the US that are in the meat category and also low in price.
+Here is an example item similarity search. The system returns indexed items similar to the search item.
 
 You can see the request and response in the image below. 
 
 .. image:: images/explanations.png
 
+The request is based on a search item that has three features. It is a US-based product in the meat category and low in price.
+
+.. literalinclude:: item_query_example.py
+  :language: python
+
 The response body in the image above contains the recommendations and explanations.
 
-The recommendations are in the ids array. 
+.. literalinclude:: item_query_response_2.py
+  :language: python
 
 The ids are ordered by index position from most to least recommended. The lowest index position is the most recommended.
 
+In the example, the system recommends item 1 more than item 2 
+
 The explanations are in the distance and explanations arrays. The values in those arrays correspond to the values in the ids array by index position.
 
-The distances explain item similarity based on all features and weights. 
+The distances explain item similarity based on all features and weights. The explanations provide more granularity by giving you distances for each feature.
 
-The explanations provide more granularity by giving you distances for each feature.
+Lower values corresponds to greater similarity. 
+
+The system recommends item 1 more than item 2 because item 1 has a distance of 0 and item 2 has distance of 2.
+
+Item 1 has a lower overall distance because it has a lower distance for price than B and they are equal in category. 
+
 
 How It Works 
 ---------------------------------------------------------
@@ -55,10 +68,8 @@ The system compares the user's item feature vector to the indexed item feature v
 
 .. image:: images/diagram-3.png
 
-
 .. note::
    To a customer who previously bought two cookies and a glass of milk, the system recommends other items that have similar features to those purchases.
-
 
 
 Field Types & Schema
@@ -73,13 +84,15 @@ Here is an example configuration.
 .. literalinclude:: init_schema_example.py
   :language: python
 	
-1. Filter Fields
+Filter Fields
+++++++++++++++++++++
 
 The filter fields are hard filters. They separate items into different partitions. Only items within the same partition are compared to one another.
  
 The example above creates two partitions. One for US items and another for EU.
 
-2. Encoder Fields
+Encoder Fields
+++++++++++++++++++++
 
 The encoder fields are soft filters for fuzzy matching. They determine how item features are compared within a partition.
 
@@ -88,7 +101,8 @@ The example above selects the one-hot encoder for each of item feature, price an
 .. note:: 
    Learn more about the one-hot and other available :doc:`encoders-list`.
 
-3. User Encoders
+User Encoders
+++++++++++++++++++++
 
 When recommending items for a user, Recsplain has special encoders you should use.
 

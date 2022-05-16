@@ -8,6 +8,17 @@ Get Started 🦖
 
 Follow the guide below to start making explainable recommendations with Recsplain.
 
+Start with:
+
+- :ref:`Installation`
+- :ref:`Configuration`
+- :ref:`Index`
+
+Then start searching by:
+
+- :ref:`Item Similarity`
+- :ref:`User Preference`
+
 Installation
 ----------------
 
