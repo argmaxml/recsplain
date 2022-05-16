@@ -37,8 +37,7 @@ This is the response from ``init_schema``.
 Index
 ---------------------------------------------------------
 
-Use the ``index`` method to dd items to the Recsplain system so that it has items to partition and compare.
-
+Use the ``index`` method to add items to the Recsplain system so that it has items to partition and compare.
 
 Here is an example of how to call the ``index`` method.
 
@@ -54,7 +53,7 @@ This is the response from ``index``.
    If you do not index items, when you search there will be nothing to check the search against for similarity.
 
 .. note::
-   When reusing the index method, using the same id twice creates duplice entries in the index.
+   When reusing the index method, using the same id twice creates duplicate entries in the index.
 
 
 Item Similarity
@@ -81,11 +80,6 @@ User Preference
 Use the ``user_query`` method to search by user. 
 
 The method returns explainable recommendations for indexed items that the user likely prefers.
-
-When recommending items based on user search, the Recsplain system takes the user's previous history with the items and checks it against the indexed items for similarity.
-
-.. note::
-   For example, for an online store, the system recommends the items the user is most likely to buy based on how similar the items are to the items the user previously purchased.
 
 Here is an example of how to call the ``user_query`` method.
 

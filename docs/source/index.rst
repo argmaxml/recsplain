@@ -8,18 +8,14 @@ Recsplain System 🦖
 
 The Recsplain System makes recommendations and explains them. 
 
-It recommends items based on tem similarity or user preferences.
-
-It explains the recommendations in terms of overall similarity and feature-to-feature similarity.
+It recommends items based on tem similarity or user preferences. It explains the recommendations in terms of overall similarity and feature-to-feature similarity.
 
 Install it in your app, use it with your data, and customize it how you want.
 
 Explainable Recommendations
 ---------------------------------------------------------
 
-Here is an example recommendation with explanations for an item similarity search. 
-
-The example query is for items in the US that are in the meat category and also low in price. 
+Here is an example of an item similarity search. The search is for items in the US that are in the meat category and also low in price.
 
 You can see the request and response in the image below. 
 
@@ -35,7 +31,7 @@ The explanations are in the distance and explanations arrays. The values in thos
 
 The distances explain item similarity based on all features and weights. 
 
-The explanations provide more granularity by giving you similarity values for each feature.
+The explanations provide more granularity by giving you distances for each feature.
 
 How It Works 
 ---------------------------------------------------------
@@ -52,9 +48,17 @@ For user preferences, Recsplain turns the user into an item feature vector based
 
 .. image:: images/diagram-2.png
 
-The system compares the user feature vector to the item feature vectors to calculate how similar the items are those the items in the user's history.
+.. note::
+   For example, a customer of an online store who bought two cookies and a glass of milk has an item feature vector that is a blend of the item vectors for two cookies and milk.
+
+The system compares the user's item feature vector to the indexed item feature vectors to calculate how similar the items are those the items in the user's history. The more similar, the higher the recommendation.
 
 .. image:: images/diagram-3.png
+
+
+.. note::
+   To a customer who previously bought two cookies and a glass of milk, the system recommends other items that have similar features to those purchases.
+
 
 
 Field Types & Schema
