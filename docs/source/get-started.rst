@@ -6,28 +6,22 @@
 Get Started 🦖 
 ==========================================
 
+Follow the guide below to start making explainable recommendations with Recsplain.
+
 Installation
 ----------------
 
 Import the package using the following import statement.
 
 .. code-block:: python
+
     import recssplain as rx
 
 
 Configuration
 ---------------------------------------------------------
 
-Configure the system with your filters, encoders, and metric.
-
-You need to configure the system so that it knows how to:
-
-- Partition the items for comparison 
-- Compare items within the same partition 
-
-Enter your configuration settings using the ``init_schema`` method. 
-
-It requires you send data when you call it. The method returns data about the system configurations.
+Use the ``init_schema`` method to configure the system so that it knows how to partition and compare feature vectors.
 
 Here is an example of how to call the ``init_schema`` method.
 
@@ -43,14 +37,8 @@ This is the response from ``init_schema``.
 Index
 ---------------------------------------------------------
 
-Add items to the Recsplain system so you have items to partition and compare.
+Use the ``index`` method to dd items to the Recsplain system so that it has items to partition and compare.
 
-Add items to the system using the ``index`` method. 
-
-.. note::
-   If you do not index items, when you search there will be nothing to check the search against for similarity.
-
-The system filters the items into separate partitions based on the filters you configured. 
 
 Here is an example of how to call the ``index`` method.
 
@@ -63,17 +51,16 @@ This is the response from ``index``.
   :language: python
 
 .. note::
+   If you do not index items, when you search there will be nothing to check the search against for similarity.
+
+.. note::
    When reusing the index method, using the same id twice creates duplice entries in the index.
 
 
 Item Similarity
 ---------------------------------------------------------
 
-Search by item for similar items. 
-
-Search by item using the ``query`` method. 
-
-It requires you send data about the search item when you call it. 
+Use the ``query`` method to search by item. 
 
 The method returns explainable recommendations for indexed items that are similar to the search item.
 
@@ -91,18 +78,14 @@ This is the response from ``query``.
 User Preference
 ---------------------------------------------------------
 
-Search by user for items the user prefers. 
+Use the ``user_query`` method to search by user. 
 
-Search by user with the ``user_query`` method. 
+The method returns explainable recommendations for indexed items that the user likely prefers.
 
-It requires you send data about the user when you call it
-
-The method returns explainable recommendations items for indexed items that the user likely prefers.
-
-When recommending items based on user search, the Recsplain system takes the user's previous history with the items, such as their item purchase history, and checks it against the items in the database for similarity.
+When recommending items based on user search, the Recsplain system takes the user's previous history with the items and checks it against the indexed items for similarity.
 
 .. note::
-   For example, for an online store, the system recommends the items the user is most likely to buy based on how similar the items are to the items the user previously bought.
+   For example, for an online store, the system recommends the items the user is most likely to buy based on how similar the items are to the items the user previously purchased.
 
 Here is an example of how to call the ``user_query`` method.
 
@@ -114,6 +97,8 @@ This is the response from ``user_query``.
 .. literalinclude:: user_query_response.py
   :language: python
 
+.. note:: 
+   Learn more about the methods in the :doc:`reference`.
 
 .. toctree::
    :maxdepth: 0
