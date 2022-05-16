@@ -6,143 +6,113 @@
 Get Started 🦖 
 ==========================================
 
+Installation
+----------------
+
+Import the package using the following import statement.
+
+.. code-block:: python
+    import recssplain as rx
 
 
-Configure
+Configuration
 ---------------------------------------------------------
 
 Configure the system with your filters, encoders, and metric.
 
-The reasons you need to configure the system is so that it knows how to:
+You need to configure the system so that it knows how to:
 
-- Partition items into separate containers 
+- Partition the items for comparison 
 - Compare items within the same partition 
 
-To enter your configuration settings, use the ``init_schema`` method. 
+Enter your configuration settings using the ``init_schema`` method. 
 
-It requires you send data when you call it, and in response it returns data about the system configurations.
+It requires you send data when you call it. The method returns data about the system configurations.
 
-Read below to see an example and to learn more about the inputs and outputs.
-
-Here is an example of data to pass to the ``init_schema`` method to configure the system.
-
-.. literalinclude:: init_schema_data.json
-  :language: JSON
-
-Here is an example of how to call the ``init_schema`` method with the example data above.
+Here is an example of how to call the ``init_schema`` method.
 
 .. literalinclude:: init_schema_example.py
   :language: python
 
-.. note::
-   The example sends the data as an argument to the method. If you are using the system as a web server, send the data in the body of a POST request instead.
+This is the response from ``init_schema``.
 
-Here is an example of a response from ``init_schema``.
+.. literalinclude:: init_schema_response.py
+  :language: python
 
-.. literalinclude:: init_schema_response.json
-  :language: JSON
 
 Index
 ---------------------------------------------------------
 
-Add items to the Recsplain system so you have items in the system to check for similarity when you search.
+Add items to the Recsplain system so you have items to partition and compare.
 
-To add items to the system, use the ``index`` method. 
+Add items to the system using the ``index`` method. 
 
 .. note::
    If you do not index items, when you search there will be nothing to check the search against for similarity.
 
-When you index your data, the system filters the items into separate partitions based on the filters you configured. 
+The system filters the items into separate partitions based on the filters you configured. 
 
-Here is an example of data to pass to the ``index`` method to add your items to the system.
-
-.. literalinclude:: data_index.json
-  :language: JSON
-
-Here is an example of how to call the ``index`` method with the example data above.
+Here is an example of how to call the ``index`` method.
 
 .. literalinclude:: data_index_example.py
   :language: python
 
-.. note::
-   The example sends the data as an argument to the method. If you are using the system as a web server, send the data in the body of a POST request instead.
+This is the response from ``index``.
 
-Here is an example of a response from ``index``.
-
-.. literalinclude:: data_index_response.json
-  :language: JSON
-
-Read below to learn more about the inputs and outputs.
+.. literalinclude:: data_index_response.py
+  :language: python
 
 .. note::
-   When reusing the index method, you should note that using the same id twice will create duplications in the index.
+   When reusing the index method, using the same id twice creates duplice entries in the index.
 
 
-Item Similarity Search
+Item Similarity
 ---------------------------------------------------------
 
 Search by item for similar items. 
 
-To search by item, use the ``query`` method. 
+Search by item using the ``query`` method. 
 
-.. note::
-  To seach by user, see the :doc:`user query<user-query>` option.
+It requires you send data about the search item when you call it. 
 
-The ``item_query`` method requires you send data about the search item when you call it, and in response it returns similar items.
+The method returns explainable recommendations for indexed items that are similar to the search item.
 
-Here is an example of data to pass to the ``query`` method.
-
-.. literalinclude:: item_query_data.json
-  :language: JSON
-
-Here is an example of how to call the ``query`` method with the example data above.
+Here is an example of how to call the ``query`` method.
 
 .. literalinclude:: item_query_example.py
   :language: python
 
-.. note::
-   The example sends the data as an argument to the method. If you are using the system as a web server, send the data in the body of a POST request instead.
+This is the response from ``query``.
 
-Here is an example of a response from ``query``.
-
-.. literalinclude:: item_query_response.json
-  :language: JSON
+.. literalinclude:: item_query_response.py
+  :language: python
 
 
-User Preference Search
+User Preference
 ---------------------------------------------------------
 
 Search by user for items the user prefers. 
 
-To search by user, use the ``user_query`` method. 
+Search by user with the ``user_query`` method. 
 
-.. note::
-   To seach by item, see the :doc:`item query<item-query>` option.
+It requires you send data about the user when you call it
 
-The ``user_query`` method requires you send data about the user when you call it, and in response it returns items the user likely prefers.
+The method returns explainable recommendations items for indexed items that the user likely prefers.
 
 When recommending items based on user search, the Recsplain system takes the user's previous history with the items, such as their item purchase history, and checks it against the items in the database for similarity.
 
 .. note::
    For example, for an online store, the system recommends the items the user is most likely to buy based on how similar the items are to the items the user previously bought.
 
-Here is an example of data to pass to the ``user_query`` method to recommend items to a user.
-
-.. literalinclude:: user_query_data.json
-  :language: JSON
-
-Here is an example of how to call the ``user_query`` method with the example data above.
+Here is an example of how to call the ``user_query`` method.
 
 .. literalinclude:: user_query_example.py
   :language: python
 
-.. note::
-   The example sends the data as an argument to the method. If you are using the system as a web server, send the data in the body of a POST request instead.
+This is the response from ``user_query``.
 
-Here is an example of a response from ``user_query``.
-
-.. literalinclude:: user_query_response.json
-  :language: JSON
+.. literalinclude:: user_query_response.py
+  :language: python
 
 
 .. toctree::
