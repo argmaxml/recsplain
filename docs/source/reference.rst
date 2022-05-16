@@ -13,5 +13,5 @@ Follow the links below to start making your very own similarity search engine.
    Installation <installation>
    Configuration <init-schema>
    Index <data-index>
-   Item Query <item-query>
-   User Query <user-query>
+   Item Similarity <item-query>
+   User Preference <user-query>

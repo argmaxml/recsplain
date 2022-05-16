@@ -8,10 +8,9 @@ Recsplain System 🦖
 
 The Recsplain System makes recommendations and explains them. 
 
-It can recommend items based on:
+It recommends items based on tem similarity or user preferences.
 
-- Item similarity 
-- User preferences 
+It explains the recommendations in terms of overall similarity and feature-to-feature similarity.
 
 Install it in your app, use it with your data, and customize it how you want.
 
@@ -57,9 +56,9 @@ The system compares the user feature vector to the item feature vectors to calcu
 Field Types & Schema
 ---------------------------------------------------------
 
-Configure Recsplain to compare feature vectors using your preferred filters and encoders. 
+Use the field types and schema to configure the Recsplain filters and encoders. 
 
-Filters determine which items are compared to one another and encoders determine how they are compared. 
+Filters determine which items are compared to one another. Encoders determine how they are compared. 
 
 Here is an example configuration.
 
@@ -84,7 +83,6 @@ The example above selects the one-hot encoder for each of item feature, price an
 3. User Encoders
 
 When recommending items for a user, Recsplain has special encoders you should use.
-
 
 .. note:: 
    Learn more about the one-hot and other available :doc:`encoders-list`.
