@@ -27,11 +27,15 @@ You can see the request and response in the image below.
 
 The response body in the image above contains the recommendations and explanations.
 
-The recommendations are in the ids array. The ids are ordered by index position from most to least recommended. The lowest index position is the most recommended.
+The recommendations are in the ids array. 
+
+The ids are ordered by index position from most to least recommended. The lowest index position is the most recommended.
 
 The explanations are in the distance and explanations arrays. The values in those arrays correspond to the values in the ids array by index position.
 
-The distances explain item similarity based on all features and weights. To supplement the distances, the explanations provide more granularity by giving you similarity values for each feature. This way you can have a deeper understanding of the overall distances and recommendations.
+The distances explain item similarity based on all features and weights. 
+
+The explanations provide more granularity by giving you similarity values for each feature.
 
 How It Works 
 ---------------------------------------------------------
