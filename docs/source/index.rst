@@ -45,7 +45,7 @@ The system compares the item feature vectors to one another to calculate how sim
 
 .. image:: images/diagram-4.png
 
-For user preferences, Recsplain turns the user into a item feature vector based on the user's previous history with the items. 
+For user preferences, Recsplain turns the user into an item feature vector based on the user's previous history with the items. 
 
 .. image:: images/diagram-2.png
 
@@ -53,17 +53,13 @@ The system compares the user feature vector to the item features vectors to calc
 
 .. image:: images/diagram-3.png
 
-Recsplain can compare feature vectors using different encoders. The encoder type dictates how items are compared to one another.
-
-.. note:: 
-   Check out our built-in :doc:`encoders-list`.
-
- .. image:: images/diagram-3.png
 
 Field Types & Schema
 ---------------------------------------------------------
 
-Configure the Recsplain system to customize how you want it to compare items for similarity.
+Configure Recsplain to compare feature vectors using your preferred filters and encoders. 
+
+Filters determine which items are compared to one another and encoders determine how they are compared. 
 
 Here is an example configuration.
 
@@ -79,7 +75,7 @@ The example above creates two partitions. One for US items and another for EU.
 2. Encoder Fields
 
 The encoder fields are soft filters for fuzzy matching. They determine how item features are compared within a partition.
- 
+
 The example above selects the one-hot encoder for each of item feature, price and catgory.
 
 .. note:: 
