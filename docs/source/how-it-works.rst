@@ -40,8 +40,8 @@ That is it. You can start making recommendations!
 
 Make recommendations in two different ways.
 
-- search by item for similar items based on item features
-- search by user for items the user is most likely to prefer based on their history with the items
+- Search by item for similar items based on item features
+- Search by user for items the user is most likely to prefer based on their history with the items
 
 .. note::
    Learn more about Recsplain by :doc:`exploring<explore>` more about how the system works.

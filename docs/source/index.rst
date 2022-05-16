@@ -8,14 +8,19 @@ Recsplain System 🦖
 
 The Recsplain System makes recommendations and explains them. 
 
+It can recommend items based on:
+
+- Item similarity 
+- User preferences 
+
 Install it in your app, use it with your data, and customize it how you want.
 
 Explainable Recommendations
 ---------------------------------------------------------
 
-Here is an example recommendation with explanations. 
+Here is an example recommendation with explanations for an item similarity search. 
 
-The example query is for items in the US that are low in price and in the meat category. 
+The example query is for items in the US that are in the meat category and also low in price. 
 
 You can see the request and response in the image below. 
 
@@ -27,22 +32,33 @@ The recommendations are in the ids array. The ids are ordered by index position 
 
 The explanations are in the distance and explanations arrays. The values in those arrays correspond to the values in the ids array by index position.
 
+The distances explain item similarity based on all features and weights. To supplement the distances, the explanations provide more granularity by giving you similarity values for each feature. This way you can have a deeper understanding of the overall distances and recommendations.
+
 How It Works 
 ---------------------------------------------------------
 
-Recsplain turns items into weighted feature vectors.
+For item similarity, Recsplain turns the items into weighted feature vectors.
 
 .. image:: images/diagram-1.png
 
-The the system compares feature vectors to one another to calculate how similar they are.
+The system compares the item feature vectors to one another to calculate how similar they are.
 
- .. image:: images/diagram-3.png
+.. image:: images/diagram-4.png
+
+For user preferences, Recsplain turns the user into a item feature vector based on the user's previous history with the items. 
+
+.. image:: images/diagram-2.png
+
+The system compares the user feature vector to the item features vectors to calculate how similar the items are those the items in the user's history.
+
+.. image:: images/diagram-3.png
 
 Recsplain can compare feature vectors using different encoders. The encoder type dictates how items are compared to one another.
 
 .. note:: 
    Check out our built-in :doc:`encoders-list`.
 
+ .. image:: images/diagram-3.png
 
 Field Types & Schema
 ---------------------------------------------------------
