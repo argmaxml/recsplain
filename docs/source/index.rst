@@ -84,25 +84,22 @@ Here is an example configuration.
 .. literalinclude:: init_schema_example.py
   :language: python
 	
-Filter Fields
-++++++++++++++++++++
+Filter Fields**
 
 The filter fields are hard filters. They separate items into different partitions. Only items within the same partition are compared to one another.
  
 The example above creates two partitions. One for US items and another for EU.
 
-Encoder Fields
-++++++++++++++++++++
+**Encoder Fields**
 
 The encoder fields are soft filters for fuzzy matching. They determine how item features are compared within a partition.
 
-The example above selects the one-hot encoder for each of item feature, price and catgory.
+The example above selects the one-hot encoder for each of the item features.
 
 .. note:: 
    Learn more about the one-hot and other available :doc:`encoders-list`.
 
-User Encoders
-++++++++++++++++++++
+**User Encoders**
 
 When recommending items for a user, Recsplain has special encoders you should use.
 

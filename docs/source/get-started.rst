@@ -10,14 +10,17 @@ Follow the guide below to start making explainable recommendations with Recsplai
 
 Start with:
 
-- :ref:`Installation`
-- :ref:`Configuration`
-- :ref:`Index`
+- :ref:`Installation<installation-section>`
+- :ref:`Configuration<configuration-section>`
+- :ref:`Index<index-section>`
 
 Then start searching by:
 
-- :ref:`Item Similarity`
-- :ref:`User Preference`
+- :ref:`Item Similarity<item-section>`
+- :ref:`User Preference<user-section>`
+
+
+.. _installation-section:
 
 Installation
 ----------------
@@ -28,6 +31,8 @@ Import the package using the following import statement.
 
     import recssplain as rx
 
+
+.. _configuration-section:
 
 Configuration
 ---------------------------------------------------------
@@ -44,6 +49,8 @@ This is the response from ``init_schema``.
 .. literalinclude:: init_schema_response.py
   :language: python
 
+
+.. _index-section:
 
 Index
 ---------------------------------------------------------
@@ -67,6 +74,8 @@ This is the response from ``index``.
    When reusing the index method, using the same id twice creates duplicate entries in the index.
 
 
+.. _item-section:
+
 Item Similarity
 ---------------------------------------------------------
 
@@ -84,6 +93,8 @@ This is the response from ``query``.
 .. literalinclude:: item_query_response.py
   :language: python
 
+
+.. _user-section:
 
 User Preference
 ---------------------------------------------------------
