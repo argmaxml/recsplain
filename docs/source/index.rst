@@ -30,33 +30,29 @@ The response body in the image above contains the recommendations and explanatio
 
 The ids are ordered by index position from most to least recommended. The lowest index position is the most recommended.
 
-The explanations are in the distance and explanations arrays. The values in those arrays correspond to the values in the ids array by index position.
-
-The distances explain item similarity based on all features and weights. The explanations provide distances for each feature.
+Distances explain item similarity based on all features and weights. Explanations provide distances for each feature. The distances and explanations correspond to the ids by index position.
 
 Lower values correspond to greater similarity. 
 
 .. literalinclude:: item_query_response_2.py
   :language: python
 
-In the example, the system recommends item 1 more than item 2.
+In the example, the system recommends item 1 more than item 2 because item 1 has a lower distance.
 
-The system recommends item 1 more because item 1 has a lower distance of 0 compared to the item 2 distance of 2.
-
-Item 1 has a lower overall distance because it has a lower distance for price than B and they are equal in category. 
+Item 1 has a lower distance because it has a lower distance for price than B and they are equal distance in category. 
 
 How It Works 
 ---------------------------------------------------------
 
-For item similarity, Recsplain turns the items into weighted feature vectors.
+For item similarity, Recsplain turns items into weighted feature vectors.
 
 .. image:: images/diagram-1.png
 
-The system compares the item feature vectors to one another to calculate how similar they are.
+The system compares item feature vectors to one another to calculate how similar they are.
 
 .. image:: images/diagram-4.png
 
-For user preferences, Recsplain turns the user into an item feature vector based on the user's previous history with the items. 
+For user preferences, Recsplain turns a user into an item feature vector based on the user's previous history with the items. 
 
 .. image:: images/diagram-2.png
 
