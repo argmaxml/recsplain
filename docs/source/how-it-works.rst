@@ -56,7 +56,7 @@ Similarity check
 
 First, customize how the system organizes and compares the items in your database. Simply send your configuration data to the system.
 
-The configuation data is comprised of your filters, encoders, and metric.
+The configuration data consists of your filters, encoders, and metric.
 
 Filters are hard filters. The system uses the hard filters to separate the indexed items into partitions. Use the partitions to control which items are checked for similarity each time you run an item or user query.
 
@@ -84,20 +84,20 @@ Recommend items by checking for similarity based on an item or a user.
 .. note::
    The system has separate methods for item and user searches.
 
-When you search, you send the system data about the seach item or user. 
+When you search, you send the system data about the search item or user. 
 
 The search item data consists of an id and values for item features that correspond to the filters and encoders. 
 
 The search user data consists of a user id and an item history, like a purchase history, where each item in the history is and id for an indexed item.
 
 .. note::
-   If you are using Recsplain as a web server, you send the seach data in the body of a POST request. If you are using it with Python bindings, call the search method and pass your item data as an argument.
+   If you are using Recsplain as a web server, you send the search data in the body of a POST request. If you are using it with Python bindings, call the search method and pass your item data as an argument.
 
 
 Understand results
 ------------------------
 
-Each time you search by item or user, the system returns items it deems similar to the search item or user, the degree of similar of each result, and optional explanations for each item in the results.
+Each time you search by item or user, the system returns items it deems similar to the search item or user and explanations for each item in the results.
 
 The system returns the items in an array ordered by most to least similar. The first item in the array is the item that is most similar and the last item in the array is the least similar.
 

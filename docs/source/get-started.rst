@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Get Started 🦖 
+Get Started 
 ==========================================
 
 Follow the guide below to start making explainable recommendations with Recsplain.
@@ -19,6 +19,9 @@ Then start searching by:
 - :ref:`Item Similarity<item-section>`
 - :ref:`User Preference<user-section>`
 
+.. note:: 
+   Learn more about the methods in the :doc:`reference`.
+
 
 .. _installation-section:
 
@@ -30,6 +33,9 @@ Import the package using the following import statement.
 .. code-block:: python
 
     import recssplain as rx
+
+.. note:: 
+   Learn more about the method in the :doc:`installation` reference.
 
 
 .. _configuration-section:
@@ -48,6 +54,9 @@ This is the response from ``init_schema``.
 
 .. literalinclude:: init_schema_response.py
   :language: python
+
+.. note:: 
+   Learn more about the method in the :doc:`configuration <init-schema>` reference.
 
 
 .. _index-section:
@@ -73,6 +82,9 @@ This is the response from ``index``.
 .. note::
    When reusing the index method, using the same id twice creates duplicate entries in the index.
 
+.. note:: 
+   Learn more about the method in the :doc:`index <data-index>` reference.
+
 
 .. _item-section:
 
@@ -92,6 +104,9 @@ This is the response from ``query``.
 
 .. literalinclude:: item_query_response.py
   :language: python
+
+.. note:: 
+   Learn more about the method in the :doc:`item similarity <item-query>` reference.
 
 
 .. _user-section:
@@ -114,7 +129,8 @@ This is the response from ``user_query``.
   :language: python
 
 .. note:: 
-   Learn more about the methods in the :doc:`reference`.
+   Learn more about the method in the :doc:`user preference <user-query>` reference.
+
 
 .. toctree::
    :maxdepth: 0
