@@ -14,5 +14,5 @@ Here is the Reference Table of Contents
    Item Similarity <item-query>
    User Preference <user-query>
    Encoders <encoders-list>
-   What it is <what-it-is>
+   What it is <what-is-recsplain>
    How it works <how-it-works>

@@ -77,7 +77,7 @@ Here is an example configuration.
 .. literalinclude:: init_schema_example.py
   :language: python
 	
-Filter Fields**
+**Filter Fields**
 
 The filter fields are hard filters. They separate items into different partitions. Only items within the same partition are compared to one another.
  
