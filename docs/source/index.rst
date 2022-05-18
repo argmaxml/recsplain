@@ -8,16 +8,14 @@ Recsplain System 🦖
 
 The Recsplain System makes recommendations and explains them. 
 
-It recommends items based on tem similarity or user preferences. It explains the recommendations in terms of overall similarity and feature-to-feature similarity.
+It recommends items based on item similarity or user preferences. It explains the recommendations in terms of overall similarity and feature-to-feature similarity.
 
 Install it in your app, use it with your data, and customize it how you want.
 
 Explainable Recommendations
 ---------------------------------------------------------
 
-Here is an example item similarity search. The system returns indexed items similar to the search item.
-
-You can see the request and response in the image below. 
+Here is an example item similarity search. You can see the request and response in the image below. 
 
 .. image:: images/explanations.png
 
@@ -30,12 +28,12 @@ The response body in the image above contains the recommendations and explanatio
 
 The ids are ordered by index position from most to least recommended. The lowest index position is the most recommended.
 
+.. literalinclude:: item_query_response_2.py
+  :language: python
+
 Distances explain item similarity based on all features and weights. Explanations provide distances for each feature. The distances and explanations correspond to the ids by index position.
 
 Lower values correspond to greater similarity. 
-
-.. literalinclude:: item_query_response_2.py
-  :language: python
 
 In the example, the system recommends item 1 more than item 2 because item 1 has a lower distance.
 

@@ -1,11 +1,7 @@
-Get Started
+Reference
 =============
 
-It takes 2 minutes to install the Recsplain system. 
-
-Once installation is complete, you can start indexing data in order to find similar items.
-
-Follow the links below to start making your very own similarity search engine.
+This guide supplements the :doc:`welcome`, :doc:`get-started`, and other guides.  
 
 .. toctree::
    :maxdepth: 0
@@ -15,3 +11,4 @@ Follow the links below to start making your very own similarity search engine.
    Index <data-index>
    Item Similarity <item-query>
    User Preference <user-query>
+   Encoders <encoders-list>
