@@ -1,42 +1,7 @@
 Index
 ===================
 
-After installing and configuring the package, add items to the Recsplain system so you have items in the system to check for similarity when you search.
-
-To add items to the system, use the ``index`` method. 
-
-.. note::
-   If you do not index items, when you search there will be nothing to check the search against for similarity.
-
-When you index your data, the system filters the items into separate partitions based on the filters you configured. 
-
-Read below to see an example and to learn more about the inputs and outputs.
-
-Example
--------------------
-
-Here is an example of data to pass to the ``index`` method to add your items to the system.
-
-.. literalinclude:: data_index.json
-  :language: JSON
-
-Here is an example of how to call the ``index`` method with the example data above.
-
-.. literalinclude:: data_index_example.py
-  :language: python
-
-.. note::
-   The example sends the data as an argument to the method. If you are using the system as a web server, send the data in the body of a POST request instead.
-
-Here is an example of a response from ``index``.
-
-.. literalinclude:: data_index_response.json
-  :language: JSON
-
 Read below to learn more about the inputs and outputs.
-
-.. note::
-   When reusing the index method, you should note that using the same id twice will create duplications in the index.
 
 Inputs
 -------------------

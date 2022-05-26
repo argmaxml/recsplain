@@ -31,16 +31,6 @@ Browse to http://127.0.0.1:5000/docs.
 
 You should see a swagger interface for the REST API.
 
-Import
-----------------
-
-Instead of using the system as a web server, you can import the package into your code to call the methods directly.
-
-Import the package using the following import statement.
-
-.. code-block:: python
-
-    import recssplain as rx
 
 
 
