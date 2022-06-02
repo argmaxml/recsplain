@@ -5,9 +5,12 @@ import numpy as np
 from tree_helpers import lowest_depth, get_values_nested
 import requests
 from smart_open import open
+from collections import defaultdict
+
 
 class PartitionSchema:
-    __slots__=["encoders", "filters", "partitions", "dim", "metric", "defaults", "id_col", "user_encoders"]
+    __slots__=["encoders", "filters", "partitions", "dim", "metric", "defaults", "id_col", "user_encoders",
+               "feature_embeddings", "feature_mapping", "item_mappings"]
     def __init__(self, encoders, filters=[], metric='ip', id_col="id", user_encoders=[]):
         self.metric = metric
         self.id_col = id_col
@@ -15,9 +18,11 @@ class PartitionSchema:
         self.encoders = self._parse_encoders(encoders)
         self.user_encoders = self._parse_encoders(user_encoders)
         self.defaults = {}
+        self.item_mappings = {}
         for f, e in self.encoders.items():
             if e.default is not None:
                 self.defaults[f] = e.default
+        self.feature_embeddings, self.feature_mapping = self._create_feature_mapping(self.encoders.items())
         self.dim = sum(map(len, filter(lambda e: e.column_weight!=0, self.encoders.values())))
     def _parse_encoders(self, encoders):
         encoder_dict = dict()
@@ -73,6 +78,19 @@ class PartitionSchema:
                 ret_filters[k].add(v)
         ret_filters = [{"field":k, "values": list(v)} for k,v in ret_filters.items()]
         return ret_filters
+
+    def _create_feature_mapping(self, encoders):
+        embeddings_dict = {}
+        mapping_dict = {}
+        for name, encoder in encoders:
+            if isinstance(encoder, NumericEncoder):
+                continue
+            embeddings = np.array([encoder.encode(value) for value in encoder.values])
+            embeddings_dict[name] = embeddings
+            mapping_dict[name] = {v: i for i, v in enumerate(encoder.values)}
+        return embeddings_dict, mapping_dict
+
+
     def encode(self, x, weights=None):
         if type(x)==list:
             return np.vstack([self.encode(t,weights) for t in x])
@@ -82,11 +100,31 @@ class PartitionSchema:
                 if f not in x:
                     x[f] = d
             if weights is None:
-                return np.concatenate([e(x[f]) for f, e in self.encoders.items() if e.column_weight!=0])
+                weights_mapping = {k: v for k, v in zip(self.encoders.keys(), [encoder.normalized_column_weight() for
+                                                                               encoder in self.encoders.values()])}
+            else:
+                weights_mapping = {k: v for k, v in zip(self.encoders.keys(), weights)}
+            encoding = []
+            for feature, encoder in self.encoders.items():
+                feature_weight = weights_mapping.get(feature, 0)
+                if feature_weight != 0:
+                    if type(encoder) == NumericEncoder:
+                        encoding.append(encoder.encode(x[feature]) * feature_weight)
+                    else:
+                        value_index = self.feature_mapping[feature][x[feature]]
+                        embedding = self.feature_embeddings[feature][value_index] * feature_weight
+                        encoding.append(embedding)
+            return np.concatenate(encoding)
             assert len(weights)==len(self.encoders), "Invalid number of weight vector {w}".format(w=len(weights))
-            return np.concatenate([w*e.encode(x[f])/np.sqrt(e.nonzero_elements) for f, e, w in zip(self.encoders.keys(),self.encoders.values(), weights)])
         else:
             raise TypeError("Usupported type for encode {t}".format(t=type(x)))
+
+    def add_mapping(self, item_id, data):
+        item_array = [-1] * len(self.encoders)
+        for i, (feature, encoder) in enumerate(self.encoders.items()):
+            item_array[i] = self.feature_mapping[feature][data[feature]] if feature in self.feature_mapping else data[feature]
+        self.item_mappings[item_id] = item_array
+
     def component_breakdown(self):
         start=0
         breakdown = {}
@@ -121,6 +159,16 @@ class PartitionSchema:
         user_encoders = self._unparse_encoders(self.user_encoders)
         return {"encoders": encoders, "filters":filters, "metric": self.metric, "id_col": self.id_col, "user_encoders": user_encoders}
 
+    def restore_vector_with_index(self, index):
+        mapping = list(self.item_mappings.values())[index]
+        output = []
+        for i, (name, encoder) in enumerate(self.encoders.items()):
+            if name in self.feature_embeddings:
+                output.extend(self.feature_embeddings[name][mapping[i]])
+            else:
+                output.extend([mapping[i]])
+        return output
+
 
 class BaseEncoder:
 
@@ -142,6 +190,9 @@ class BaseEncoder:
     
     def special_properties(self):
         return {}
+
+    def normalized_column_weight(self):
+        return self.column_weight / np.sqrt(self.nonzero_elements)
 
 class CachingEncoder(BaseEncoder):
     cache_max_size=1024

@@ -39,6 +39,7 @@ class BaseStrategy:
         for datum in data:
             try:
                 vecs.append((self.schema.partition_num(datum), self.schema.encode(datum), datum[self.schema.id_col]))
+                self.schema.add_mapping(datum[self.schema.id_col], datum)
             except Exception as e:
                 errors.append((datum, str(e)))
         vecs = sorted(vecs, key=at(0))
@@ -113,6 +114,7 @@ class BaseStrategy:
         vec = vec.reshape(-1)
         explanation = []
         X = self.partitions[partition_num].get_items(num_ids[0])
+        # X = [self.schema.restore_vector_with_index(index) for index in num_ids[0]]
         first_sim = None
         for ret_vec in X:
             start=0
