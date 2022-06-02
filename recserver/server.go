@@ -532,6 +532,36 @@ func (schema Schema) index_partitions(records map[int][]Record) {
 	wg.Wait()
 }
 
+func bq(query_str string, project string) []map[int]interface{} {
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, project)
+	if err != nil {
+		log.Fatal(err)
+	}
+	query := client.Query(query_str)
+	it, err := query.Read(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var results []map[int]interface{}
+	for {
+		var row []bigquery.Value
+		err := it.Next(&row)
+		if err == iterator.Done {
+				break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		result := make(map[int]interface{})
+		for i, v := range row {
+			result[i] = v
+		}
+		results = append(results, result)
+	}
+	return results
+}
+
 func (schema Schema) pull_item_data() (map[int][]Record, ItemLookup, error) {
 	var item_lookup ItemLookup
 	var partitioned_records map[int][]Record
@@ -545,6 +575,25 @@ func (schema Schema) pull_item_data() (map[int][]Record, ItemLookup, error) {
 					return nil, ItemLookup{}, err
 				}
 				found_item_source = true
+			}
+			if src.Type == "bq" {
+				jsonFile, err := os.Open(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+				if err != nil {
+					fmt.Println(err)
+				}
+				defer jsonFile.Close()
+				
+				byteValue, _ := ioutil.ReadAll(jsonFile)
+				
+				var result map[string]interface{}
+				json.Unmarshal([]byte(byteValue), &result)
+				
+				var project_id string
+				project_id = result["project_id"].(string)
+				fmt.Println(project_id)
+			
+				// TODO: set query, use output
+				bq(query, project_id)
 			}
 		}
 	}
