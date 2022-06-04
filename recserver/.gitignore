@@ -3,6 +3,7 @@ partitions/
 indices/
 __debug_bin
 schema.json
+variants.json
 index_labels.json
 test.csv
 0

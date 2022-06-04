@@ -80,6 +80,12 @@ type PartitionMeta struct {
 	Trained bool     `json:"trained"`
 }
 
+type Variant struct {
+	Name       string             `json:"name"`
+	Percentage string             `json:"percentage"`
+	Weights    map[string]float64 `json:"weights"`
+}
+
 func read_index_labels(in_file string) []string {
 	jsonFile, err := os.Open(in_file)
 	if err != nil {
@@ -611,16 +617,27 @@ func (schema Schema) read_user_csv(filename string, history_col string) (map[str
 	return user_data, nil
 }
 
-func read_schema(schema_file string) Schema {
-	jsonFile, err := os.Open(schema_file)
+func read_schema_variants(schema_file string, variants_file string) (Schema, []Variant, error) {
+	schema_json_file, err := os.Open(schema_file)
 	if err != nil {
 		fmt.Println(err)
+		return Schema{}, nil, err
 	}
-	defer jsonFile.Close()
-	byteValue, _ := ioutil.ReadAll(jsonFile)
+	defer schema_json_file.Close()
+	schema_byte_value, _ := ioutil.ReadAll(schema_json_file)
+
+	variants_json_file, err := os.Open(schema_file)
+	if err != nil {
+		fmt.Println(err)
+		return Schema{}, nil, err
+	}
+	defer schema_json_file.Close()
+	variants_byte_value, _ := ioutil.ReadAll(variants_json_file)
 
 	var schema Schema
-	json.Unmarshal(byteValue, &schema)
+	var variants []Variant
+	json.Unmarshal(schema_byte_value, &schema)
+	json.Unmarshal(variants_byte_value, &schema)
 	embeddings := make(map[string]*mat.Dense)
 	dim := 0
 	for i := 0; i < len(schema.Encoders); i++ {
@@ -652,7 +669,7 @@ func read_schema(schema_file string) Schema {
 	}
 	schema.PartitionMap = partition_map
 
-	return schema
+	return schema, variants, nil
 }
 
 func main() {
@@ -661,7 +678,7 @@ func main() {
 		base_dir = os.Args[1]
 	}
 
-	schema := read_schema(base_dir + "/schema.json")
+	schema, variants, err := read_schema_variants(base_dir+"/schema.json", base_dir+"/variants.json")
 
 	indices := gcache.New(32).
 		LFU().
