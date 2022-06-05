@@ -18,7 +18,7 @@ class PartitionSchema:
         self.encoders = self._parse_encoders(encoders)
         self.user_encoders = self._parse_encoders(user_encoders)
         self.defaults = {}
-        self.item_mappings = {}
+        self.item_mappings = defaultdict(dict)
         for f, e in self.encoders.items():
             if e.default is not None:
                 self.defaults[f] = e.default
@@ -119,11 +119,12 @@ class PartitionSchema:
         else:
             raise TypeError("Usupported type for encode {t}".format(t=type(x)))
 
-    def add_mapping(self, item_id, data):
-        item_array = [-1] * len(self.encoders)
-        for i, (feature, encoder) in enumerate(self.encoders.items()):
-            item_array[i] = self.feature_mapping[feature][data[feature]] if feature in self.feature_mapping else data[feature]
-        self.item_mappings[item_id] = item_array
+    def add_mapping(self, partition_num, ids, data):
+        for index, datum in zip(ids, data):
+            item_array = [-1] * len(self.encoders)
+            for i, (feature, encoder) in enumerate(self.encoders.items()):
+                item_array[i] = self.feature_mapping[feature][datum[feature]] if feature in self.feature_mapping else datum[feature]
+            self.item_mappings[partition_num][index] = item_array
 
     def component_breakdown(self):
         start=0
@@ -159,8 +160,8 @@ class PartitionSchema:
         user_encoders = self._unparse_encoders(self.user_encoders)
         return {"encoders": encoders, "filters":filters, "metric": self.metric, "id_col": self.id_col, "user_encoders": user_encoders}
 
-    def restore_vector_with_index(self, index):
-        mapping = list(self.item_mappings.values())[index]
+    def restore_vector_with_index(self, partition_num, index):
+        mapping = self.item_mappings[partition_num][index]
         output = []
         for i, (name, encoder) in enumerate(self.encoders.items()):
             if name in self.feature_embeddings:
