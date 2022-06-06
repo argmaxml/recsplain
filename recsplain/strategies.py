@@ -101,13 +101,15 @@ class BaseStrategy:
         try:
             vec = vec.reshape(1,-1).astype('float32') # for faiss
             distances, num_ids = self.partitions[partition_num].search(vec, k=k)
+            indices = np.where(num_ids != -1)
+            distances, num_ids = distances[indices], num_ids[indices]
         except Exception as e:
             raise Exception("Error in querying: " + str(e))
         if len(num_ids) == 0:
             labels, distances = [], []
         else:
-            labels = [self.index_labels[n] for n in num_ids[0]]
-            distances = [float(d) for d in distances[0]]
+            labels = [self.index_labels[n] for n in num_ids]
+            distances = [float(d) for d in distances]
         if not explain:
             return labels,distances, []
 

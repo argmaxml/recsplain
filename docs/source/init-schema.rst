@@ -2,41 +2,6 @@
 Configure
 =================
 
-After installing the package, configure the system with your filters, encoders, and metric.
-
-The reasons you need to configure the system is so that it knows how to:
-
-- Partition items into separate containers 
-- Compare items within the same partition 
-
-To enter your configuration settings, use the ``init_schema`` method. 
-
-It requires you send data when you call it, and in response it returns data about the system configurations.
-
-Read below to see an example and to learn more about the inputs and outputs.
-
-Example
-----------------
-
-Here is an example of data to pass to the ``init_schema`` method to configure the system.
-
-.. literalinclude:: init_schema_data.json
-  :language: JSON
-
-Here is an example of how to call the ``init_schema`` method with the example data above.
-
-.. literalinclude:: init_schema_example.py
-  :language: python
-
-.. note::
-   The example sends the data as an argument to the method. If you are using the system as a web server, send the data in the body of a POST request instead.
-
-Here is an example of a response from ``init_schema``.
-
-.. literalinclude:: init_schema_response.json
-  :language: JSON
-
-
 Read below to learn more about the inputs and outputs.
 
 Inputs
