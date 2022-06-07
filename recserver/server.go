@@ -63,8 +63,9 @@ type Explanation struct {
 }
 
 type ItemLookup struct {
-	id2label []string
-	label2id map[string]int
+	id2label        []string
+	label2id        map[string]int
+	label2partition map[string]int
 }
 
 type Record struct {
