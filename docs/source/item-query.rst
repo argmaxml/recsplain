@@ -1,38 +1,6 @@
 Item query
 ===================
 
-After you configure the system and index your items, you can use the system to search by item for similar items. 
-
-To search by item, use the ``query`` method. 
-
-.. note::
-  To seach by user, see the :doc:`user query<user-query>` option.
-
-The ``item_query`` method requires you send data about the search item when you call it, and in response it returns similar items.
-
-Read below to see an example and to learn more about the inputs and outputs.
-
-Example
-----------------
-
-Here is an example of data to pass to the ``query`` method.
-
-.. literalinclude:: item_query_data.json
-  :language: JSON
-
-Here is an example of how to call the ``query`` method with the example data above.
-
-.. literalinclude:: item_query_example.py
-  :language: python
-
-.. note::
-   The example sends the data as an argument to the method. If you are using the system as a web server, send the data in the body of a POST request instead.
-
-Here is an example of a response from ``query``.
-
-.. literalinclude:: item_query_response.json
-  :language: JSON
-
 Read below to learn more about the inputs and outputs.
 
 Inputs
