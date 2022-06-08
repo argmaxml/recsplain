@@ -165,9 +165,9 @@ class PartitionSchema:
         output = []
         for i, (name, encoder) in enumerate(self.encoders.items()):
             if name in self.feature_embeddings:
-                output.extend(self.feature_embeddings[name][mapping[i]])
+                output.extend(self.feature_embeddings[name][mapping[i]] * encoder.normalized_column_weight())
             else:
-                output.extend([mapping[i]])
+                output.extend([mapping[i] * encoder.normalized_column_weight()])
         return output
 
 
