@@ -7,9 +7,10 @@ import requests
 from smart_open import open
 
 class PartitionSchema:
-    __slots__=["encoders", "filters", "partitions", "dim", "metric", "defaults", "id_col", "user_encoders"]
-    def __init__(self, encoders, filters=[], metric='ip', id_col="id", user_encoders=[]):
+    __slots__=["encoders", "filters", "partitions", "dim", "metric", "index_factory", "defaults", "id_col", "user_encoders"]
+    def __init__(self, encoders, filters=[], metric='ip', index_factory='', id_col="id", user_encoders=[]):
         self.metric = metric
+        self.index_factory = index_factory
         self.id_col = id_col
         self.filters, self.partitions = self._parse_filters(filters)
         self.encoders = self._parse_encoders(encoders)
