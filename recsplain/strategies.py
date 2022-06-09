@@ -213,16 +213,21 @@ class BaseStrategy:
 
     def fetch(self, lbls, numpy=False):
         sil = set(self.index_labels)
-        found = [l for l in lbls if l in sil]
+        if type(lbls) == list:
+            found = [l for l in lbls if l in sil]
+        else:
+            found = [lbls] if lbls in sil else []
         ids = [self.index_labels.index(l) for l in found]
         ret = collections.defaultdict(list)
-        for p,pn in zip(self.partitions, self.schema.partitions):
+        for partition_num, (p,pn) in enumerate(zip(self.partitions, self.schema.partitions)):
             for id in ids:
                 try:
                     if numpy:
-                        ret[pn].extend(p.get_items([id]))
+                        # ret[pn].extend(p.get_items([id]))
+                        ret[pn].extend(self.schema.restore_vector_with_index(partition_num, id))
                     else:
-                        ret[pn].extend([tuple(float(v) for v in vec) for vec in p.get_items([id])])
+                        # ret[pn].extend([tuple(float(v) for v in vec) for vec in p.get_items([id])])
+                        ret[pn].extend([tuple(float(v) for v in vec) for vec in self.schema.restore_vector_with_index(partition_num, id)])
                 except Exception as e:
                     # not found
                     pass

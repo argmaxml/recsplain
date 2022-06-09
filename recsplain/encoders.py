@@ -123,7 +123,7 @@ class PartitionSchema:
         for index, datum in zip(ids, data):
             item_array = [-1] * len(self.encoders)
             for i, (feature, encoder) in enumerate(self.encoders.items()):
-                item_array[i] = self.feature_mapping[feature][datum[feature]] if feature in self.feature_mapping else datum[feature]
+                item_array[i] = self.feature_mapping[feature][datum[feature]] if feature in self.feature_mapping else float(datum[feature])
             self.item_mappings[partition_num][index] = item_array
 
     def component_breakdown(self):
@@ -168,7 +168,7 @@ class PartitionSchema:
                 output.extend(self.feature_embeddings[name][mapping[i]] * encoder.normalized_column_weight())
             else:
                 output.extend([mapping[i] * encoder.normalized_column_weight()])
-        return output
+        return np.array(output).reshape(1, self.dim)
 
 
 class BaseEncoder:

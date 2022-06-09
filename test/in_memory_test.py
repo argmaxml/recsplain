@@ -2,7 +2,7 @@ import sys, unittest
 from pathlib import Path
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 from recsplain import AvgUserStrategy
-
+import numpy as np
 
 class InMemory(unittest.TestCase):
     def setUp(self):
@@ -60,8 +60,8 @@ class InMemory(unittest.TestCase):
             "country": "US"
         }
         vector = self.strategy.encode(datum).tolist()
-        expected = [0.0, 1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 3.0]
-        self.assertListEqual(vector, expected)
+        expected = np.array([0.0, 1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 3.0])
+        self.assertTrue(np.allclose(vector, expected))
 
     def test_restore(self):
         datum = {
@@ -74,8 +74,8 @@ class InMemory(unittest.TestCase):
         partition_num = self.strategy.schema.partition_num(datum)
         index = 2
         vector = self.strategy.schema.restore_vector_with_index(partition_num, index)
-        expected = [0.0, 1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 3.0]
-        self.assertListEqual(vector, expected)
+        expected = np.array([0.0, 1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 3.0])
+        self.assertTrue(np.allclose(vector, expected))
 
 
 if __name__ == '__main__':
