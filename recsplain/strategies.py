@@ -101,10 +101,8 @@ class BaseStrategy:
         try:
             vec = vec.reshape(1,-1).astype('float32') # for faiss
             distances, num_ids = self.partitions[partition_num].search(vec, k=k)
-            print(f"distances1: {distances}")
             indices = np.where(num_ids != -1)
             distances, num_ids = distances[indices], num_ids[indices]
-            print(f"vec: {vec}, indices: {indices}, distances2: {distances}, num_ids = {num_ids}")
         except Exception as e:
             raise Exception("Error in querying: " + str(e))
         if len(num_ids) == 0:
@@ -152,13 +150,8 @@ class BaseStrategy:
             raise Exception("Error in partitioning: " + str(e))
         try:
             vec = self.schema.encode(data)
-            print(vec)
         except Exception as e:
             raise Exception("Error in encoding: " + str(e))
-        if type(partition_nums)!=list:
-            print(partition_nums)
-            print("bad_partition")
-            print(f"Partition num: {partition_nums}, vec: {vec}, k: {k}, explain: {explain}")
             return self.query_by_partition_and_vector(partition_nums, vec, k, explain)
 
         # Aggregate results if multiple partitions are returned:
