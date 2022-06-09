@@ -21,8 +21,8 @@ try:
 except:
     def free_memory():
         gc.collect()
-sys.path.append("../src")
-from strategies import AvgUserStrategy
+# sys.path.append("../src")
+from .strategies import AvgUserStrategy
 import pandas as pd
 
 strategy = None

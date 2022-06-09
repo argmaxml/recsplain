@@ -2,7 +2,7 @@ import json, re, itertools, collections, os
 from copy import deepcopy as clone
 from operator import itemgetter as at
 import numpy as np
-from tree_helpers import lowest_depth, get_values_nested
+from .tree_helpers import lowest_depth, get_values_nested
 import requests
 from smart_open import open
 from collections import defaultdict
@@ -10,8 +10,8 @@ from collections import defaultdict
 
 class PartitionSchema:
     __slots__=["encoders", "filters", "partitions", "dim", "metric", "defaults", "id_col", "user_encoders",
-               "feature_embeddings", "feature_mapping", "item_mappings"]
-    def __init__(self, encoders, filters=[], metric='ip', id_col="id", user_encoders=[]):
+               "feature_embeddings", "feature_mapping", "item_mappings", "index_factory"]
+    def __init__(self, encoders, filters=[], metric='ip', id_col="id", user_encoders=[], index_factory="IDMap,Flat"):
         self.metric = metric
         self.index_factory = index_factory
         self.id_col = id_col

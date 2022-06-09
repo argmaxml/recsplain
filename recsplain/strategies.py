@@ -3,11 +3,11 @@ from operator import itemgetter as at
 import numpy as np
 from pathlib import Path
 
-src = Path(__file__).absolute().parent
-sys.path.append(str(src))
-from encoders import PartitionSchema
+# src = Path(__file__).absolute().parent
+# sys.path.append(str(src))
+from .encoders import PartitionSchema
 from joblib import delayed, Parallel
-from similarity_helpers import parse_server_name, FlatFaiss
+from .similarity_helpers import parse_server_name, FlatFaiss
 
 class BaseStrategy:
     __slots__ = ["schema", "partitions","index_labels", "model_dir", "IndexEngine", "engine_params"]
@@ -152,8 +152,8 @@ class BaseStrategy:
             vec = self.schema.encode(data)
         except Exception as e:
             raise Exception("Error in encoding: " + str(e))
-        if type(partition_nums)!=list:
             return self.query_by_partition_and_vector(partition_nums, vec, k, explain)
+
         # Aggregate results if multiple partitions are returned:
         labels,distances,explanation = [], [], []
         for partition_num in partition_nums:
