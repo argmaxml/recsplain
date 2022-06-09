@@ -19,18 +19,21 @@ def parse_server_name(sname):
         return FlatFaiss
     raise TypeError(str(sname) + " is not a valid similarity server name")
 
+
 class FlatFaiss:
-    def __init__(self, space, dim, **kwargs):
+    def __init__(self, space, dim, index_factory, **kwargs):
+        if index_factory == '':
+            index_factory = 'IVF128,Flat'
         if space in ['ip', 'cosine']:
-            self.index = faiss.IndexFlatIP(dim)
-            if space=='cosine':
-                #TODO: Support cosine
+            self.index = faiss.index_factory(dim, index_factory, faiss.METRIC_INNER_PRODUCT)
+            if space == 'cosine':
+                # TODO: Support cosine
                 print("cosine is not supported yet, falling back to dot")
-        elif space== 'l2':
-            self.index = faiss.IndexFlatL2(dim)
+        elif space == 'l2':
+            self.index = faiss.index_factory(dim, index_factory, faiss.METRIC_L2)
         else:
             raise TypeError(str(space) + " is not supported")
-        self.index=faiss.IndexIDMap2(self.index)
+        self.index = faiss.IndexIDMap2(self.index)
 
     def add_items(self, data, ids):
         data = np.array(data).astype(np.float32)

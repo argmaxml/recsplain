@@ -46,14 +46,16 @@ class Column(BaseModel):
 
 class Schema(BaseModel):
     encoders: List[Column]
-    metric: Optional[str]='ip'
-    filters: Optional[List[Column]]=[]
-    user_encoders: Optional[List[Column]]=[]
-    id_col: Optional[str]='id'
+    metric: Optional[str] = 'ip'
+    index_factory: Optional[str] = ''
+    filters: Optional[List[Column]] = []
+    user_encoders: Optional[List[Column]] = []
+    id_col: Optional[str] = 'id'
     
     def to_dict(self):
         return {
             "metric": self.metric,
+            "index_factory": self.index_factory,
             "filters": [vars(c) for c in self.filters],
             "encoders": [vars(c) for c in self.encoders],
         }

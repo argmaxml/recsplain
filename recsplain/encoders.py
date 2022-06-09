@@ -13,6 +13,7 @@ class PartitionSchema:
                "feature_embeddings", "feature_mapping", "item_mappings"]
     def __init__(self, encoders, filters=[], metric='ip', id_col="id", user_encoders=[]):
         self.metric = metric
+        self.index_factory = index_factory
         self.id_col = id_col
         self.filters, self.partitions = self._parse_filters(filters)
         self.encoders = self._parse_encoders(encoders)

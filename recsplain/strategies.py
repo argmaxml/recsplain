@@ -29,7 +29,7 @@ class BaseStrategy:
 
     def init_schema(self, **kwargs):
         self.schema = PartitionSchema(**kwargs)
-        self.partitions = [self.IndexEngine(self.schema.metric, self.schema.dim, **self.engine_params) for _ in self.schema.partitions]
+        self.partitions = [self.IndexEngine(self.schema.metric, self.schema.dim, self.schema.index_factory, **self.engine_params) for _ in self.schema.partitions]
         enc_sizes = {k:len(v) for k,v in self.schema.encoders.items()}
         return self.schema.partitions, enc_sizes
 
