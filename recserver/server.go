@@ -85,7 +85,8 @@ type Record struct {
 	Id        int
 	Label     string
 	Partition int
-	Values    map[string]string
+	Values    []string
+	Fields    []string
 }
 
 type PartitionMeta struct {
@@ -236,7 +237,7 @@ func (schema Schema) reconstruct(partitioned_records map[int][]Record, id int64,
 	//TODO: Have a more intelligent way of looking up the original record (currently, linear search)
 	for _, record := range partitioned_records[partition_idx] {
 		if record.Id == int(id) {
-			reconstructed = schema.encode(record.Values)
+			reconstructed = schema.encode(zip(record.Fields, record.Values))
 			break
 		}
 	}
@@ -356,7 +357,7 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 				continue
 			}
 			next_result := Explanation{
-				Label:    item_lookup.id2label[int(id)],
+				Label:    strings.SplitN(item_lookup.id2label[int(id)], "~", 2)[1],
 				Distance: distances[i],
 			}
 			if (payload.Explain) && (partitioned_records != nil) {
@@ -368,6 +369,9 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 				}
 			}
 			retrieved = append(retrieved, next_result)
+		}
+		if variant == "" {
+			variant = "default"
 		}
 		retval := QueryRetVal{
 			Explanations: retrieved,
@@ -435,7 +439,7 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 				continue
 			}
 			next_result := Explanation{
-				Label:    item_lookup.id2label[int(id)],
+				Label:    strings.SplitN(item_lookup.id2label[int(id)], "~", 2)[1],
 				Distance: distances[i],
 			}
 			if (payload.Explain) && (partitioned_records != nil) {
@@ -447,6 +451,9 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 				}
 			}
 			retrieved = append(retrieved, next_result)
+		}
+		if variant == "" {
+			variant = "default"
 		}
 		retval := QueryRetVal{
 			Explanations: retrieved,
@@ -501,8 +508,8 @@ func (schema Schema) read_partitioned_csv(filename string, variants []Variant) (
 	label2id := make(map[string]int)
 	label2partition := make(map[string]int)
 	partition2records := make(map[int][]Record)
-	for _, row := range data {
-		for _, variant := range variants {
+	for _, variant := range variants {
+		for _, row := range data {
 			vid := variant.Name + "~" + row[id_num]
 			id, found := label2id[vid]
 			if !found {
@@ -516,7 +523,8 @@ func (schema Schema) read_partitioned_csv(filename string, variants []Variant) (
 			partition2records[partition_idx] = append(partition2records[partition_idx], Record{
 				Label:     row[id_num],
 				Id:        id,
-				Values:    query,
+				Values:    row,
+				Fields:    header,
 				Partition: partition_idx,
 			})
 		}
@@ -572,8 +580,7 @@ func (schema Schema) index_partitions(records map[int][]Record) {
 			xb := make([]float32, schema.Dim*len(partitioned_records))
 			ids := make([]int64, len(partitioned_records))
 			for i, record := range partitioned_records {
-				encoded := schema.encode(record.Values)
-				// go write_npy(fmt.Sprintf("%s/%d", partition_dir, record.Id), encoded)
+				encoded := schema.encode(zip(record.Fields, record.Values))
 				for j, v := range encoded {
 					xb[i*schema.Dim+j] = v
 					ids[i] = int64(record.Id)
