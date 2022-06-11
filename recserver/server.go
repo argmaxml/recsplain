@@ -252,8 +252,8 @@ func random_variant(variants []Variant) string {
 		names[i] = variants[i].Name
 	}
 	retval := random_by_weights(names, weights)
-	if retval == "" {
-		return "default"
+	if retval == "default" {
+		return ""
 	}
 	return retval
 }
@@ -699,7 +699,7 @@ func read_schema(schema_file string, variants_file string) (Schema, []Variant, e
 	variant_filter := make([]Filter, 1)
 	variant_filter[0] = Filter{
 		Field:   "variant",
-		Default: "default",
+		Default: "",
 		Values:  variants_vals,
 	}
 	schema.Filters = append(variant_filter, schema.Filters...)
