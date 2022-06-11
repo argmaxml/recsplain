@@ -12,6 +12,15 @@ schema = {
     "encoders":[{"field": "state",  "values": ["a", "b", "c", "d", "e"], "type":"np", "weight":1, "npy": "state.npy"}],
     "sources":[{"record": "items", "type": "csv", "path": "test.csv"}],
 }
+variants = [
+    {
+        "name": "",
+        "percentage": 100,
+        "weights": {
+            
+        }
+    }
+]
 index_labels = ["eu1", "eu2", "us3", "us5"]
 
 index_us = faiss.IndexIDMap2(faiss.IndexFlatIP(dim))
@@ -26,10 +35,13 @@ add_items(index_us, np.array([[0,0,0,0,1],[0,0,0,1,0]]), ["us5","us3"])
 
 # -------------Write-------------
 np.save('state.npy', embeddings)
+with open("variants.json", "w") as f:
+    json.dump(variants, f, indent=4)
 with open("schema.json", "w") as f:
     json.dump(schema, f, indent=4)
 with open("index_labels.json", "w") as f:
-    json.dump(index_labels, f)
+    varianted_index_labels = ["~"+l for l in index_labels]
+    json.dump(varianted_index_labels, f)
 with open("test.csv", 'w') as f:
     f.write("id,country,state\n")
     f.write("us1,US,a\n")
