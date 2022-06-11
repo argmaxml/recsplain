@@ -29,9 +29,10 @@ type Schema struct {
 	Sources        []Source  `json:"sources"`
 	Dim            int       `json:"dim"`
 	Embeddings     map[string]*mat.Dense
+	NumItems       int
 	Partitions     [][]string
 	PartitionMap   map[string]int
-	WeightOverride map[string](map[string]float64) `json:"weight_override"`
+	WeightOverride []WeightOverride `json:"weight_override"`
 }
 
 type Filter struct {
@@ -49,6 +50,13 @@ type Encoder struct {
 	Weight  float64  `json:"weight"`
 }
 
+type WeightOverride struct {
+	FilterField   string  `json:"filter_field"`
+	EncoderField  string  `json:"encoder_field"`
+	FilterValue   string  `json:"filter_value"`
+	EncoderWeight float64 `json:"encoder_weight"`
+}
+
 type Source struct {
 	Record string `json:"record"`
 	Type   string `json:"type"`
@@ -60,6 +68,11 @@ type Explanation struct {
 	Label     string             `json:"label"`
 	Distance  float32            `json:"distance"`
 	Breakdown map[string]float32 `json:"breakdown"`
+}
+
+type QueryRetVal struct {
+	Explanations []Explanation `json:"explanations"`
+	Variant      string        `json:"variant"`
 }
 
 type ItemLookup struct {
@@ -83,7 +96,7 @@ type PartitionMeta struct {
 
 type Variant struct {
 	Name       string             `json:"name"`
-	Percentage string             `json:"percentage"`
+	Percentage float64            `json:"percentage"`
 	Weights    map[string]float64 `json:"weights"`
 }
 
@@ -113,11 +126,9 @@ func (schema Schema) encode(query map[string]string) []float32 {
 		}
 		// Override weight if specified
 		for j := 0; j < len(schema.Filters); j++ {
-			filter_override, found := schema.WeightOverride[schema.Filters[j].Field]
-			if found {
-				encoder_override, found := filter_override[schema.Encoders[i].Field]
-				if found {
-					schema.Encoders[i].Weight = encoder_override
+			for _, weight_override := range schema.WeightOverride {
+				if weight_override.EncoderField == schema.Encoders[i].Field && weight_override.FilterField == schema.Filters[j].Field && weight_override.FilterValue == query[schema.Filters[j].Field] {
+					schema.Encoders[i].Weight = weight_override.EncoderWeight
 				}
 			}
 		}
@@ -153,15 +164,16 @@ func (schema Schema) encode(query map[string]string) []float32 {
 	return encoded32
 }
 
-func (schema Schema) partition_number(query map[string]string) int {
+func (schema Schema) partition_number(query map[string]string, variant string) int {
 
-	filters := make([]string, len(schema.Filters))
+	filters := make([]string, 1+len(schema.Filters))
+	filters[0] = variant
 	for i := 0; i < len(schema.Filters); i++ {
 		val, found := query[schema.Filters[i].Field]
 		if !found {
 			val = schema.Filters[i].Default
 		}
-		filters[i] = val
+		filters[1+i] = val
 	}
 	partition_key := strings.Join(filters, "~")
 	partition_idx := schema.PartitionMap[partition_key]
@@ -232,7 +244,17 @@ func faiss_index_from_cache(cache gcache.Cache, index int) faiss.Index {
 	return faiss_interface.(faiss.Index)
 }
 
-func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, partitioned_records map[int][]Record, user_data map[string][]string) {
+func random_variant(variants []Variant) string {
+	weights := make([]float64, len(variants))
+	names := make([]string, len(variants))
+	for i := 0; i < len(variants); i++ {
+		weights[i] = variants[i].Percentage
+		names[i] = variants[i].Name
+	}
+	return random_by_weights(names, weights)
+}
+
+func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_lookup ItemLookup, partitioned_records map[int][]Record, user_data map[string][]string) {
 	app := fiber.New(fiber.Config{
 		Views: html.New("./views", ".html"),
 	})
@@ -261,7 +283,7 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 	})
 
 	app.Get("/reload_items", func(c *fiber.Ctx) error {
-		partitioned_records, item_lookup, _ = schema.pull_item_data()
+		partitioned_records, item_lookup, _ = schema.pull_item_data(variants)
 		os.RemoveAll("indices")
 		schema.index_partitions(partitioned_records)
 		return c.SendString("{\"Status\": \"OK\"}")
@@ -302,6 +324,7 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 		}
 		var partition_idx int
 		var encoded []float32
+		variant := random_variant(variants)
 		if payload.ItemId != "" {
 			id := int64(item_lookup.label2id[payload.ItemId])
 			partition_idx = item_lookup.label2partition[payload.ItemId]
@@ -310,7 +333,7 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 				return c.SendString("{\"Status\": \"Not Found\"}")
 			}
 		} else {
-			partition_idx = schema.partition_number(payload.Query)
+			partition_idx = schema.partition_number(payload.Query, variant)
 			encoded = schema.encode(payload.Query)
 		}
 		//TODO: Resolve code duplication (1)
@@ -338,7 +361,11 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 			}
 			retrieved = append(retrieved, next_result)
 		}
-		return c.JSON(retrieved)
+		retval := QueryRetVal{
+			Explanations: retrieved,
+			Variant:      variant,
+		}
+		return c.JSON(retval)
 	})
 
 	app.Post("/user_query/:k?", func(c *fiber.Ctx) error {
@@ -352,7 +379,8 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 		if err := c.BodyParser(&payload); err != nil {
 			return err
 		}
-		partition_idx := schema.partition_number(payload.Filters)
+		variant := random_variant(variants)
+		partition_idx := schema.partition_number(payload.Filters, variant)
 		k, err := strconv.Atoi(c.Params("k"))
 		if err != nil {
 			k = 2
@@ -412,7 +440,11 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 			}
 			retrieved = append(retrieved, next_result)
 		}
-		return c.JSON(retrieved)
+		retval := QueryRetVal{
+			Explanations: retrieved,
+			Variant:      variant,
+		}
+		return c.JSON(retval)
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -435,7 +467,7 @@ func start_server(schema Schema, indices gcache.Cache, item_lookup ItemLookup, p
 	log.Fatal(app.Listen(":8088"))
 }
 
-func (schema Schema) read_partitioned_csv(filename string) (map[int][]Record, ItemLookup, error) {
+func (schema Schema) read_partitioned_csv(filename string, variants []Variant) (map[int][]Record, ItemLookup, error) {
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -468,14 +500,16 @@ func (schema Schema) read_partitioned_csv(filename string) (map[int][]Record, It
 			label2id[row[id_num]] = id
 		}
 		query := zip(header, row)
-		partition_idx := schema.partition_number(query)
-		label2partition[row[id_num]] = partition_idx
-		partition2records[partition_idx] = append(partition2records[partition_idx], Record{
-			Label:     row[id_num],
-			Id:        id,
-			Values:    query,
-			Partition: partition_idx,
-		})
+		for _, variant := range variants {
+			partition_idx := schema.partition_number(query, variant.Name)
+			label2partition[row[id_num]] = partition_idx
+			partition2records[partition_idx] = append(partition2records[partition_idx], Record{
+				Label:     row[id_num],
+				Id:        id,
+				Values:    query,
+				Partition: partition_idx,
+			})
+		}
 
 	}
 	id2label := make([]string, len(label2id))
@@ -549,7 +583,7 @@ func (schema Schema) index_partitions(records map[int][]Record) {
 	wg.Wait()
 }
 
-func (schema Schema) pull_item_data() (map[int][]Record, ItemLookup, error) {
+func (schema Schema) pull_item_data(variants []Variant) (map[int][]Record, ItemLookup, error) {
 	var item_lookup ItemLookup
 	var partitioned_records map[int][]Record
 	var err error
@@ -557,7 +591,7 @@ func (schema Schema) pull_item_data() (map[int][]Record, ItemLookup, error) {
 	for _, src := range schema.Sources {
 		if strings.ToLower(src.Record) == "items" {
 			if src.Type == "csv" {
-				partitioned_records, item_lookup, err = schema.read_partitioned_csv(src.Path)
+				partitioned_records, item_lookup, err = schema.read_partitioned_csv(src.Path, variants)
 				if err != nil {
 					return nil, ItemLookup{}, err
 				}
@@ -628,11 +662,11 @@ func (schema Schema) read_user_csv(filename string, history_col string) (map[str
 	return user_data, nil
 }
 
-func read_schema_variants(schema_file string, variants_file string) ([]Schema, error) {
+func read_schema(schema_file string, variants_file string) (Schema, []Variant, error) {
 	schema_json_file, err := os.Open(schema_file)
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return Schema{}, nil, err
 	}
 	defer schema_json_file.Close()
 	schema_byte_value, _ := ioutil.ReadAll(schema_json_file)
@@ -640,7 +674,7 @@ func read_schema_variants(schema_file string, variants_file string) ([]Schema, e
 	variants_json_file, err := os.Open(schema_file)
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return Schema{}, nil, err
 	}
 	defer schema_json_file.Close()
 	variants_byte_value, _ := ioutil.ReadAll(variants_json_file)
@@ -650,7 +684,7 @@ func read_schema_variants(schema_file string, variants_file string) ([]Schema, e
 	json.Unmarshal(schema_byte_value, &schema)
 	json.Unmarshal(variants_byte_value, &schema)
 	if schema.WeightOverride == nil {
-		schema.WeightOverride = make(map[string](map[string]float64))
+		schema.WeightOverride = make([]WeightOverride, 0)
 	}
 
 	embeddings := make(map[string]*mat.Dense)
@@ -669,9 +703,13 @@ func read_schema_variants(schema_file string, variants_file string) ([]Schema, e
 	schema.Dim = dim
 	schema.Embeddings = embeddings
 
-	values := make([][]string, len(schema.Filters))
+	values := make([][]string, 1+len(schema.Filters))
+	values[0] = make([]string, len(variants))
+	for i := 0; i < len(variants); i++ {
+		values[0][i] = variants[i].Name
+	}
 	for i := 0; i < len(schema.Filters); i++ {
-		values[i] = schema.Filters[i].Values
+		values[1+i] = schema.Filters[i].Values
 	}
 	partitions := itertools_product(values...)
 
@@ -683,10 +721,7 @@ func read_schema_variants(schema_file string, variants_file string) ([]Schema, e
 		partition_map[key] = i
 	}
 	schema.PartitionMap = partition_map
-
-	schemas := make([]Schema, len(variants))
-	//TODO: implement variants
-	return schemas, nil
+	return schema, variants, nil
 }
 
 func main() {
@@ -695,7 +730,7 @@ func main() {
 		base_dir = os.Args[1]
 	}
 
-	schemas, err := read_schema_variants(base_dir+"/schema.json", base_dir+"/variants.json")
+	schema, variants, err := read_schema(base_dir+"/schema.json", base_dir+"/variants.json")
 
 	indices := gcache.New(32).
 		LFU().
@@ -715,19 +750,21 @@ func main() {
 	var user_data map[string][]string
 
 	//TODO: Read from CLI
-	var item_lookup ItemLookup
-	for i := 0; i < len(schemas); i++ {
-		partitioned_records, item_lookup, err = schemas[i].pull_item_data()
-		if err != nil {
-			log.Fatal(err)
-		}
-		user_data, err = schemas[i].pull_user_data()
-		if err != nil {
-			log.Println(err)
-		}
-
-		schemas[i].index_partitions(partitioned_records)
+	item_lookup := ItemLookup{
+		id2label:        make([]string, 0),
+		label2id:        make(map[string]int),
+		label2partition: make(map[string]int),
+	}
+	partitioned_records, item_lookup, err = schema.pull_item_data(variants)
+	if err != nil {
+		log.Fatal(err)
+	}
+	user_data, err = schema.pull_user_data()
+	if err != nil {
+		log.Println(err)
 	}
 
-	start_server(schema, indices, item_lookup, partitioned_records, user_data)
+	schema.index_partitions(partitioned_records)
+
+	start_server(schema, variants, indices, item_lookup, partitioned_records, user_data)
 }

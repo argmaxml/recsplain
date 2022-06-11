@@ -2,11 +2,27 @@ package main
 
 import (
 	"log"
+	"math/rand"
 	"os"
 
 	"github.com/sbinet/npyio"
 	"gonum.org/v1/gonum/mat"
 )
+
+func random_by_weights[T any](values []T, weights []float64) T {
+	total := 0.0
+	for _, w := range weights {
+		total += w
+	}
+	r := rand.Float64() * total
+	for i, w := range weights {
+		r -= w
+		if r <= 0 {
+			return values[i]
+		}
+	}
+	return values[len(values)-1]
+}
 
 func itertools_product[T any](a ...[]T) [][]T {
 	c := 1
