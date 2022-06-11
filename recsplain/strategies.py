@@ -3,11 +3,11 @@ from operator import itemgetter as at
 import numpy as np
 from pathlib import Path
 
-src = Path(__file__).absolute().parent
-sys.path.append(str(src))
-from encoders import PartitionSchema
+# src = Path(__file__).absolute().parent
+# sys.path.append(str(src))
+from .encoders import PartitionSchema
 from joblib import delayed, Parallel
-from similarity_helpers import parse_server_name, FlatFaiss
+from .similarity_helpers import parse_server_name, FlatFaiss
 
 class BaseStrategy:
     __slots__ = ["schema", "partitions","index_labels", "model_dir", "IndexEngine", "engine_params"]
@@ -29,7 +29,7 @@ class BaseStrategy:
 
     def init_schema(self, **kwargs):
         self.schema = PartitionSchema(**kwargs)
-        self.partitions = [self.IndexEngine(self.schema.metric, self.schema.dim, **self.engine_params) for _ in self.schema.partitions]
+        self.partitions = [self.IndexEngine(self.schema.metric, self.schema.dim, self.schema.index_factory, **self.engine_params) for _ in self.schema.partitions]
         enc_sizes = {k:len(v) for k,v in self.schema.encoders.items()}
         return self.schema.partitions, enc_sizes
 
@@ -56,6 +56,7 @@ class BaseStrategy:
             affected_partitions += 1
             num_ids = list(map(self.index_labels.index, ids))
             self.partitions[partition_num].add_items(items, num_ids)
+            self.schema.add_mapping(partition_num, num_ids, [d for d in data if d['id'] in ids])
         return errors, affected_partitions
 
 
@@ -114,7 +115,8 @@ class BaseStrategy:
 
         vec = vec.reshape(-1)
         explanation = []
-        X = self.partitions[partition_num].get_items(num_ids)
+        # X = self.partitions[partition_num].get_items(num_ids[0])
+        X = np.array([self.schema.restore_vector_with_index(partition_num, index) for index in num_ids[0]], dtype='float32')
         first_sim = None
         for ret_vec in X:
             start=0
@@ -150,8 +152,8 @@ class BaseStrategy:
             vec = self.schema.encode(data)
         except Exception as e:
             raise Exception("Error in encoding: " + str(e))
-        if type(partition_nums)!=list:
             return self.query_by_partition_and_vector(partition_nums, vec, k, explain)
+
         # Aggregate results if multiple partitions are returned:
         labels,distances,explanation = [], [], []
         for partition_num in partition_nums:
@@ -211,16 +213,21 @@ class BaseStrategy:
 
     def fetch(self, lbls, numpy=False):
         sil = set(self.index_labels)
-        found = [l for l in lbls if l in sil]
+        if type(lbls) == list:
+            found = [l for l in lbls if l in sil]
+        else:
+            found = [lbls] if lbls in sil else []
         ids = [self.index_labels.index(l) for l in found]
         ret = collections.defaultdict(list)
-        for p,pn in zip(self.partitions, self.schema.partitions):
+        for partition_num, (p,pn) in enumerate(zip(self.partitions, self.schema.partitions)):
             for id in ids:
                 try:
                     if numpy:
-                        ret[pn].extend(p.get_items([id]))
+                        # ret[pn].extend(p.get_items([id]))
+                        ret[pn].extend(self.schema.restore_vector_with_index(partition_num, id))
                     else:
-                        ret[pn].extend([tuple(float(v) for v in vec) for vec in p.get_items([id])])
+                        # ret[pn].extend([tuple(float(v) for v in vec) for vec in p.get_items([id])])
+                        ret[pn].extend([tuple(float(v) for v in vec) for vec in self.schema.restore_vector_with_index(partition_num, id)])
                 except Exception as e:
                     # not found
                     pass
