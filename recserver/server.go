@@ -166,15 +166,15 @@ func (schema Schema) encode(query map[string]string) []float32 {
 
 func (schema Schema) partition_number(query map[string]string, variant string) int {
 
-	filters := make([]string, 1+len(schema.Filters))
-	filters[0] = variant
-	for i := 0; i < len(schema.Filters); i++ {
+	filters := make([]string, len(schema.Filters))
+	for i := 1; i < len(schema.Filters); i++ {
 		val, found := query[schema.Filters[i].Field]
 		if !found {
 			val = schema.Filters[i].Default
 		}
-		filters[1+i] = val
+		filters[i] = val
 	}
+	filters[0] = variant
 	partition_key := strings.Join(filters, "~")
 	partition_idx := schema.PartitionMap[partition_key]
 	return partition_idx
@@ -688,10 +688,21 @@ func read_schema(schema_file string, variants_file string) (Schema, []Variant, e
 	var schema Schema
 	var variants []Variant
 	json.Unmarshal(schema_byte_value, &schema)
-	json.Unmarshal(variants_byte_value, &schema)
+	json.Unmarshal(variants_byte_value, &variants)
 	if schema.WeightOverride == nil {
 		schema.WeightOverride = make([]WeightOverride, 0)
 	}
+	variants_vals := make([]string, len(variants))
+	for i, variant := range variants {
+		variants_vals[i] = variant.Name
+	}
+	variant_filter := make([]Filter, 1)
+	variant_filter[0] = Filter{
+		Field:   "variant",
+		Default: "default",
+		Values:  variants_vals,
+	}
+	schema.Filters = append(variant_filter, schema.Filters...)
 
 	embeddings := make(map[string]*mat.Dense)
 	dim := 0
@@ -709,13 +720,9 @@ func read_schema(schema_file string, variants_file string) (Schema, []Variant, e
 	schema.Dim = dim
 	schema.Embeddings = embeddings
 
-	values := make([][]string, 1+len(schema.Filters))
-	values[0] = make([]string, len(variants))
-	for i := 0; i < len(variants); i++ {
-		values[0][i] = variants[i].Name
-	}
+	values := make([][]string, len(schema.Filters))
 	for i := 0; i < len(schema.Filters); i++ {
-		values[1+i] = schema.Filters[i].Values
+		values[i] = schema.Filters[i].Values
 	}
 	partitions := itertools_product(values...)
 
