@@ -9,7 +9,10 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
-func random_by_weights[T any](values []T, weights []float64) T {
+func random_by_weights(values []string, weights []float64) string {
+	if len(values) != len(weights) || len(values) == 0 {
+		return ""
+	}
 	total := 0.0
 	for _, w := range weights {
 		total += w

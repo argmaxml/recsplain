@@ -251,7 +251,11 @@ func random_variant(variants []Variant) string {
 		weights[i] = variants[i].Percentage
 		names[i] = variants[i].Name
 	}
-	return random_by_weights(names, weights)
+	retval := random_by_weights(names, weights)
+	if retval == "" {
+		return "default"
+	}
+	return retval
 }
 
 func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_lookup ItemLookup, partitioned_records map[int][]Record, user_data map[string][]string) {
