@@ -686,19 +686,25 @@ func read_schema(schema_file string, variants_file string) (Schema, []Variant, e
 	}
 	defer schema_json_file.Close()
 	schema_byte_value, _ := ioutil.ReadAll(schema_json_file)
+	var schema Schema
+	json.Unmarshal(schema_byte_value, &schema)
 
 	variants_json_file, err := os.Open(variants_file)
-	if err != nil {
-		fmt.Println(err)
-		return Schema{}, nil, err
-	}
-	defer schema_json_file.Close()
-	variants_byte_value, _ := ioutil.ReadAll(variants_json_file)
-
-	var schema Schema
 	var variants []Variant
-	json.Unmarshal(schema_byte_value, &schema)
-	json.Unmarshal(variants_byte_value, &variants)
+	if err == nil {
+		defer variants_json_file.Close()
+		variants_byte_value, _ := ioutil.ReadAll(variants_json_file)
+		json.Unmarshal(variants_byte_value, &variants)
+	} else {
+		fmt.Println("Variant file not found, using default 100 percent split")
+		variants := make([]Variant, 1)
+		variants[0] = Variant{
+			Name:       "",
+			Percentage: 100,
+			Weights:    make(map[string]float64),
+		}
+	}
+
 	if schema.WeightOverride == nil {
 		schema.WeightOverride = make([]WeightOverride, 0)
 	}
