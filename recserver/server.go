@@ -116,6 +116,10 @@ func read_index_labels(in_file string) []string {
 
 func (schema Schema) encode(query map[string]string) []float32 {
 	encoded := make([]float64, 0)
+	encoder_weights := make([]float64, len(schema.Encoders))
+	for i := 0; i < len(schema.Encoders); i++ {
+		encoder_weights[i] = schema.Encoders[i].Weight
+	}
 	// Concatenate all components to a single vector
 	for i := 0; i < len(schema.Encoders); i++ {
 		var raw_vector []float64
@@ -128,7 +132,7 @@ func (schema Schema) encode(query map[string]string) []float32 {
 		for j := 0; j < len(schema.Filters); j++ {
 			for _, weight_override := range schema.WeightOverride {
 				if weight_override.EncoderField == schema.Encoders[i].Field && weight_override.FilterField == schema.Filters[j].Field && weight_override.FilterValue == query[schema.Filters[j].Field] {
-					schema.Encoders[i].Weight = weight_override.EncoderWeight
+					encoder_weights[i] = weight_override.EncoderWeight
 				}
 			}
 		}
@@ -137,7 +141,7 @@ func (schema Schema) encode(query map[string]string) []float32 {
 			if err != nil {
 				fval = 0
 			}
-			raw_vector = []float64{fval * schema.Encoders[i].Weight}
+			raw_vector = []float64{fval * encoder_weights[i]}
 		} else {
 			emb_matrix := schema.Embeddings[schema.Encoders[i].Field]
 			row_index := index_of(schema.Encoders[i].Values, val)
@@ -149,7 +153,7 @@ func (schema Schema) encode(query map[string]string) []float32 {
 			if row_index > -1 {
 				raw_vector = mat.Row(nil, row_index, emb_matrix)
 				for j := 0; j < emb_size; j++ {
-					raw_vector[j] *= schema.Encoders[i].Weight
+					raw_vector[j] *= encoder_weights[i]
 				}
 			}
 		}
@@ -719,6 +723,20 @@ func read_schema(schema_file string, variants_file string) (Schema, []Variant, e
 	}
 	schema.Dim = dim
 	schema.Embeddings = embeddings
+
+	//Add weight overloading
+	varianted_weights := make([]WeightOverride, 0)
+	for _, variant := range variants {
+		for encoder_field, encoder_weight := range variant.Weights {
+			varianted_weights = append(varianted_weights, WeightOverride{
+				FilterField:   "variant",
+				FilterValue:   variant.Name,
+				EncoderField:  encoder_field,
+				EncoderWeight: encoder_weight,
+			})
+		}
+	}
+	schema.WeightOverride = append(schema.WeightOverride, varianted_weights...)
 
 	values := make([][]string, len(schema.Filters))
 	for i := 0; i < len(schema.Filters); i++ {
