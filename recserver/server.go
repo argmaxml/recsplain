@@ -537,7 +537,6 @@ func (schema Schema) read_partitioned_csv(filename string, variants []Variant) (
 }
 
 func (schema Schema) index_partitions(records map[int][]Record) {
-	// os.Mkdir("partitions", os.ModePerm)
 	os.Mkdir("indices", os.ModePerm)
 	var wg sync.WaitGroup
 	for partition_idx, partitioned_records := range records {
@@ -550,8 +549,6 @@ func (schema Schema) index_partitions(records map[int][]Record) {
 
 		wg.Add(1)
 		go func(partition_idx int, partitioned_records []Record) {
-			// partition_dir := fmt.Sprintf("partitions/%d", i)
-			// os.Mkdir(partition_dir, os.ModePerm)
 			defer wg.Done()
 			var faiss_index faiss.Index
 			// https://github.com/facebookresearch/faiss/wiki/The-index-factory
@@ -582,11 +579,13 @@ func (schema Schema) index_partitions(records map[int][]Record) {
 					ids[i] = int64(record.Id)
 				}
 			}
+			fmt.Printf("Start-%d\n", partition_idx)
 			faiss_index.Train(xb)
 			faiss_index.AddWithIDs(xb, ids)
 			faiss_index.Train(xb)
 			faiss.WriteIndex(faiss_index, fmt.Sprintf("indices/%d", partition_idx))
 			faiss_index.Delete()
+			fmt.Printf("Done-%d\n", partition_idx)
 
 		}(partition_idx, partitioned_records)
 	}
