@@ -330,8 +330,8 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 		var encoded []float32
 		variant := random_variant(variants)
 		if payload.ItemId != "" {
-			id := int64(item_lookup.label2id[payload.ItemId])
-			partition_idx = item_lookup.label2partition[payload.ItemId]
+			id := int64(item_lookup.label2id[variant+"~"+payload.ItemId])
+			partition_idx = item_lookup.label2partition[variant+"~"+payload.ItemId]
 			encoded = schema.reconstruct(partitioned_records, id, partition_idx)
 			if encoded == nil {
 				return c.SendString("{\"Status\": \"Not Found\"}")
@@ -401,7 +401,7 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 		}
 
 		for _, item_id := range payload.History {
-			id := int64(item_lookup.label2id[item_id])
+			id := int64(item_lookup.label2id[variant+"~"+item_id])
 			if id == -1 {
 				continue
 			}
@@ -498,15 +498,17 @@ func (schema Schema) read_partitioned_csv(filename string, variants []Variant) (
 	label2partition := make(map[string]int)
 	partition2records := make(map[int][]Record)
 	for _, row := range data {
-		id, found := label2id[row[id_num]]
-		if !found {
-			id = len(label2id)
-			label2id[row[id_num]] = id
-		}
-		query := zip(header, row)
 		for _, variant := range variants {
+			vid := variant.Name + "~" + row[id_num]
+			id, found := label2id[vid]
+			if !found {
+				id = len(label2id)
+				label2id[vid] = id
+			}
+			query := zip(header, row)
+
 			partition_idx := schema.partition_number(query, variant.Name)
-			label2partition[row[id_num]] = partition_idx
+			label2partition[vid] = partition_idx
 			partition2records[partition_idx] = append(partition2records[partition_idx], Record{
 				Label:     row[id_num],
 				Id:        id,
@@ -675,7 +677,7 @@ func read_schema(schema_file string, variants_file string) (Schema, []Variant, e
 	defer schema_json_file.Close()
 	schema_byte_value, _ := ioutil.ReadAll(schema_json_file)
 
-	variants_json_file, err := os.Open(schema_file)
+	variants_json_file, err := os.Open(variants_file)
 	if err != nil {
 		fmt.Println(err)
 		return Schema{}, nil, err
@@ -735,6 +737,9 @@ func main() {
 	}
 
 	schema, variants, err := read_schema(base_dir+"/schema.json", base_dir+"/variants.json")
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	indices := gcache.New(32).
 		LFU().
