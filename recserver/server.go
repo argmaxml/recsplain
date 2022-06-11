@@ -579,13 +579,13 @@ func (schema Schema) index_partitions(records map[int][]Record) {
 					ids[i] = int64(record.Id)
 				}
 			}
-			fmt.Printf("Start-%d\n", partition_idx)
+			// fmt.Printf("Start-%d\n", partition_idx)
 			faiss_index.Train(xb)
 			faiss_index.AddWithIDs(xb, ids)
 			faiss_index.Train(xb)
 			faiss.WriteIndex(faiss_index, fmt.Sprintf("indices/%d", partition_idx))
 			faiss_index.Delete()
-			fmt.Printf("Done-%d\n", partition_idx)
+			// fmt.Printf("Done-%d\n", partition_idx)
 
 		}(partition_idx, partitioned_records)
 	}
