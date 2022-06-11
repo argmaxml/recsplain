@@ -135,7 +135,7 @@ async def api_index(data: Union[List[Dict[str, str]], str]):
     return {"status": "OK", "affected_partitions": affected_partitions}
 
 
-@api.post("/query")
+@api.post("/item_query")
 async def api_query(query: KnnQuery):
     if not strategy.schema_initialized():
         return {"status": "error", "message": "Schema not initialized"}
