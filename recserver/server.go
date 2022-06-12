@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -483,27 +482,14 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 }
 
 func (schema Schema) read_partitioned_csv(filename string, variants []Variant) (map[int][]Record, ItemLookup, error) {
-
-	file, err := os.Open(filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	// reader.Comma = '\t'
-	reader.FieldsPerRecord = -1
-	raw_data, err := reader.ReadAll()
+	header, data, err := read_csv(filename)
 	if err != nil {
 		return nil, ItemLookup{}, err
 	}
-
-	header := raw_data[0]
 	id_num := index_of(header, schema.IdCol)
 	if id_num == -1 {
 		return nil, ItemLookup{}, errors.New("id column not found")
 	}
-	data := raw_data[1:]
 
 	label2id := make(map[string]int)
 	label2partition := make(map[string]int)
@@ -643,21 +629,11 @@ func (schema Schema) pull_user_data() (map[string][]string, error) {
 }
 
 func (schema Schema) read_user_csv(filename string, history_col string) (map[string][]string, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
 
-	reader := csv.NewReader(file)
-	// reader.Comma = '\t'
-	reader.FieldsPerRecord = -1
-	raw_data, err := reader.ReadAll()
+	header, data, err := read_csv(filename)
 	if err != nil {
-		return nil, err
+		fmt.Println(err.Error())
 	}
-
-	header := raw_data[0]
 	id_num := index_of(header, schema.IdCol)
 	if id_num == -1 {
 		return nil, errors.New("id column not found")
@@ -667,7 +643,6 @@ func (schema Schema) read_user_csv(filename string, history_col string) (map[str
 	if id_num == -1 {
 		return nil, errors.New("history column not found")
 	}
-	data := raw_data[1:]
 
 	user_data := make(map[string][]string)
 	for _, row := range data {
