@@ -19,6 +19,8 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
+const port = 8088
+
 type Schema struct {
 	IdCol          string    `json:"id_col"`
 	Metric         string    `json:"metric"`
@@ -57,10 +59,11 @@ type WeightOverride struct {
 }
 
 type Source struct {
-	Record string `json:"record"`
-	Type   string `json:"type"`
-	Path   string `json:"path"`
-	Query  string `json:"query"`
+	Record      string `json:"record"`
+	Type        string `json:"type"`
+	Path        string `json:"path"`
+	Query       string `json:"query"`
+	RefreshRate int64  `json:"refresh_rate"`
 }
 
 type Explanation struct {
@@ -478,7 +481,7 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 		})
 	})
 
-	log.Fatal(app.Listen(":8088"))
+	log.Fatal(app.Listen(fmt.Sprintf(":%d", port)))
 }
 
 func (schema Schema) read_partitioned_csv(filename string, variants []Variant) (map[int][]Record, ItemLookup, error) {
@@ -597,6 +600,7 @@ func (schema Schema) pull_item_data(variants []Variant) (map[int][]Record, ItemL
 				if err != nil {
 					return nil, ItemLookup{}, err
 				}
+				go poll_endpoint(fmt.Sprintf("http://localhost:%d/reload_items", port), src.RefreshRate)
 				found_item_source = true
 			}
 		}
@@ -618,6 +622,7 @@ func (schema Schema) pull_user_data() (map[string][]string, error) {
 				if err != nil {
 					return nil, err
 				}
+				go poll_endpoint(fmt.Sprintf("http://localhost:%d/reload_users", port), src.RefreshRate)
 				found_user_source = true
 			}
 		}
@@ -786,6 +791,5 @@ func main() {
 	}
 
 	schema.index_partitions(partitioned_records)
-
 	start_server(schema, variants, indices, item_lookup, partitioned_records, user_data)
 }

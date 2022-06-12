@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sbinet/npyio"
 	"gonum.org/v1/gonum/mat"
@@ -171,4 +173,16 @@ func read_csv(filename string) ([]string, [][]string, error) {
 	header := raw_data[0]
 	data := raw_data[1:]
 	return header, data, nil
+}
+
+func poll_endpoint(url string, seconds int64) {
+	if seconds <= 0 {
+		return
+	}
+	time.Sleep(time.Second * time.Duration(seconds))
+	ticker := time.NewTicker(time.Second * time.Duration(seconds))
+	for t := range ticker.C {
+		resp, _ := http.Get(url)
+		fmt.Println("Polling ", url, " at ", t, " status: ", resp.Status)
+	}
 }
