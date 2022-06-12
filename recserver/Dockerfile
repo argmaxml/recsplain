@@ -26,7 +26,7 @@ RUN git clone https://github.com/argmaxml/recsplain
 WORKDIR /root/recsplain/recserver
 RUN go build . && mv recserver /root/ && mkdir /root/views && cp run.sh views/index.html /root/views/ && cp run.sh /root/
 WORKDIR /root
-COPY schema.json /root/
+COPY *.json /root/
 COPY *.npy /root/
 COPY *.csv /root/
 EXPOSE 8088

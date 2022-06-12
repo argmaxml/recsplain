@@ -10,7 +10,7 @@ schema = {
     "index_factory":"IDMap,LSH",
     "filters":[{"field": "country", "values": ["EU", "US"]}],
     "encoders":[{"field": "state",  "values": ["a", "b", "c", "d", "e"], "type":"np", "weight":1, "npy": "state.npy"}],
-    "sources":[{"record": "items", "type": "csv", "path": "test.csv"}],
+    "sources":[{"record": "items", "type": "csv", "path": "test.csv", "refresh_rate": 60}],
 }
 variants = [
     {

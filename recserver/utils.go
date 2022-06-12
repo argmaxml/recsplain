@@ -1,9 +1,15 @@
 package main
 
 import (
+	"encoding/csv"
+	"fmt"
+	"io"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/sbinet/npyio"
 	"gonum.org/v1/gonum/mat"
@@ -115,4 +121,68 @@ func write_npy(npy string, m []float32) error {
 		return err
 	}
 	return nil
+}
+
+func download_file(url string, filename string) error {
+	// Create the file
+	out, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Get the data
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func read_csv(filename string) ([]string, [][]string, error) {
+	if strings.HasPrefix(filename, "http") {
+		dfilename := filename[strings.LastIndex(filename, "/")+1:]
+		err := download_file(filename, dfilename)
+		if err != nil {
+			return nil, nil, err
+		}
+		filename = dfilename
+	}
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	// reader.Comma = '\t'
+	reader.FieldsPerRecord = -1
+	raw_data, err := reader.ReadAll()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	header := raw_data[0]
+	data := raw_data[1:]
+	return header, data, nil
+}
+
+func poll_endpoint(url string, seconds int64) {
+	if seconds <= 0 {
+		return
+	}
+	time.Sleep(time.Second * time.Duration(seconds))
+	ticker := time.NewTicker(time.Second * time.Duration(seconds))
+	for t := range ticker.C {
+		resp, _ := http.Get(url)
+		fmt.Println("Polling ", url, " at ", t, " status: ", resp.Status)
+	}
 }
