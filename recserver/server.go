@@ -324,6 +324,7 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 			ItemId  string            `json:"id"`
 			Query   map[string]string `json:"query"`
 			Explain bool              `json:"explain"`
+			Variant string            `json:"variant"`
 		}{}
 
 		if err := c.BodyParser(&payload); err != nil {
@@ -335,7 +336,12 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 		}
 		var partition_idx int
 		var encoded []float32
-		variant := random_variant(variants)
+		var variant string
+		if payload.Variant == "" {
+			variant = random_variant(variants)
+		} else {
+			variant = payload.Variant
+		}
 		if payload.ItemId != "" {
 			id := int64(item_lookup.label2id[variant+"~"+payload.ItemId])
 			partition_idx = item_lookup.label2partition[variant+"~"+payload.ItemId]
@@ -388,12 +394,18 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 			History []string          `json:"history"`
 			Filters map[string]string `json:"filters"`
 			Explain bool              `json:"explain"`
+			Variant string            `json:"variant"`
 		}{}
 
 		if err := c.BodyParser(&payload); err != nil {
 			return err
 		}
-		variant := random_variant(variants)
+		var variant string
+		if payload.Variant == "" {
+			variant = random_variant(variants)
+		} else {
+			variant = payload.Variant
+		}
 		partition_idx := schema.partition_number(payload.Filters, variant)
 		k, err := strconv.Atoi(c.Params("k"))
 		if err != nil {
