@@ -11,7 +11,7 @@ from collections import defaultdict
 class PartitionSchema:
     __slots__=["encoders", "filters", "partitions", "dim", "metric", "defaults", "id_col", "user_encoders",
                "feature_embeddings", "feature_mapping", "item_mappings", "index_factory"]
-    def __init__(self, encoders, filters=[], metric='ip', id_col="id", user_encoders=[], index_factory="IDMap,Flat"):
+    def __init__(self, encoders, filters=[], metric='ip', id_col="id", user_encoders=[], index_factory="Flat"):
         self.metric = metric
         self.index_factory = index_factory
         self.id_col = id_col
