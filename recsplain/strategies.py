@@ -1,5 +1,6 @@
 import json, itertools, collections, sys, os
 from operator import itemgetter as at
+from scipy.optimize import minimize, Bounds
 import numpy as np
 from pathlib import Path
 
@@ -8,6 +9,35 @@ from pathlib import Path
 from .encoders import PartitionSchema
 from joblib import delayed, Parallel
 from .similarity_helpers import parse_server_name, FlatFaiss
+
+def find_weights(encoded_col,scores, metric='ip'):
+    def calc_loss(weights_sq):
+        loss = 0
+        for (w,v),s in scores:
+            diff=0
+            norm_w=1
+            norm_v=1
+            for i,alpha in enumerate(weights_sq):
+                diff+=np.dot(encoded_col[i][w],encoded_col[i][v])*alpha
+                if metric=='cosine':
+                    norm_w+=np.dot(encoded_col[i][w],encoded_col[i][w])*alpha
+                    norm_v+=np.dot(encoded_col[i][v],encoded_col[i][v])*alpha
+            if metric=='cosine':
+                diff/=np.sqrt(norm_w*norm_v)
+            diff-=s
+            loss+=(diff)**2
+        return loss
+    assert metric in {'ip', 'cosine'}
+    x0=np.ones(len(encoded_col))
+    lb=np.zeros(len(encoded_col))
+    ub=np.repeat(np.inf,len(encoded_col))
+    res = minimize(calc_loss,x0, bounds=Bounds(lb,ub))
+    
+    if res.success:
+        coefs = np.sqrt(res.x)
+        return coefs
+    else:
+        return None
 
 class BaseStrategy:
     __slots__ = ["schema", "partitions","index_labels", "model_dir", "IndexEngine", "engine_params"]
@@ -255,6 +285,17 @@ class BaseStrategy:
 
     def get_total_items(self):
         return len(self.index_labels)
+
+    def fit_by_explicit_similarity(self, scores):
+        embeddings = []
+        for feature, encoder in self.schema.encoders.items():
+            embeddings.append(self.schema.feature_embeddings[feature])
+        weights = find_weights(embeddings,scores,self.schema.metric)
+        if not hasattr(weights, '__len__'):
+            return False
+        for i, (feature, encoder) in enumerate(self.schema.encoders.items()):
+            encoder.column_weight = weights[i]
+        return True
 
 
 class AvgUserStrategy(BaseStrategy):

@@ -1,11 +1,14 @@
-import json, re, itertools, collections, os
+import json, sys, itertools, collections, os
 from copy import deepcopy as clone
 from operator import itemgetter as at
 import numpy as np
 from .tree_helpers import lowest_depth, get_values_nested
 import requests
-from smart_open import open
 from collections import defaultdict
+try:
+    from smart_open import open
+except:
+    sys.stderr.write("Could not import smart_open.\n")
 
 
 class PartitionSchema:
