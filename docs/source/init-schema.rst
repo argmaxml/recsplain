@@ -51,7 +51,7 @@ Here is what each does:
 - ``type``: the type of encoder to use for checking similarity for this feature
 - ``weight``: the relative importance the system should attribute to this feature in the similarity check
 
-Unlke the filters, the encoders are not hard filters and therefore do not play a role in creating the partitions.
+Unlike the filters, the encoders are not hard filters and therefore do not play a role in creating the partitions.
 
 Instead, the encoders are used when the user searches by item or user to find similar items. 
 
@@ -74,7 +74,13 @@ The weight tells the system the relative importance of each feature in the encod
 Metric
 *******************
 
-COMING SOON
+Metric is the method to use when calculating the returned distance from the similarity server for each item.
+
+types of matrics:
+"""""""""
+- ``l2``: the default metric.
+- ``cosine``: the cosine metric.
+
 
 Outputs
 ----------------
