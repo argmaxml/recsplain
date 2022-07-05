@@ -95,9 +95,8 @@ The example above selects the one-hot encoder for each of the item features.
 **User Encoders**
 
 When recommending items for a user, Recsplain has special encoders you should use.
+Currently, user encoders encode the user's history into a feature vector.
 
-.. note:: 
-   Learn more about the one-hot and other available :doc:`encoders-list`.
 
 .. note:: 
    **ArgMaxML** created Recsplain. We are focused on creating software the enables you to integrate recommendation engines into your product to increase customer engagement.
