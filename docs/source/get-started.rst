@@ -98,7 +98,7 @@ This is the response from ``index``.
    When reusing the index method, using the same id twice creates duplicate entries in the index.
    In the example below the index method is called twice with the same entry. In the index table both entries are created.
 
-.. image:: images/index_duplicate.png
+.. image:: images/reusing_index.png
 
 .. note:: 
    Learn more about the method in the :doc:`index <data-index>` reference.
