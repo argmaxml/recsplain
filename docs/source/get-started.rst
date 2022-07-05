@@ -60,7 +60,7 @@ Here is an example of how to call the ``init_schema`` method.
 .. literalinclude:: init_schema_example.py
   :language: python
 
-Weights are used to set the relative importance the system should attribute to this feature in the similarity check.
+``Weights`` are used to set the relative importance the system should attribute to this feature in the similarity check.
 
 This is the response from ``init_schema``.
 
