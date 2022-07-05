@@ -245,6 +245,12 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 		})
 	})
 
+	app.Get("/shutdown", func(c *fiber.Ctx) error {
+		fmt.Println("Shutting down")
+		app.Shutdown()
+		return c.SendStatus(200)
+	})
+
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", port)))
 }
 
