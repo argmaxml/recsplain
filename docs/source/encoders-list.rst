@@ -12,6 +12,7 @@ NumericEncoder
 """""""""
 Use for numeric data.
 example:
+
 .. code-block:: python
 
     {
@@ -26,6 +27,7 @@ OneHotEncoder
 """""""""
 Use for categorical data. First category is saved for "unknown" entries.
 example:
+
 .. code-block:: python
 
     {
@@ -39,6 +41,7 @@ StrictOneHotEncoder
 """""""""
 Use for categorical data. No "unknown" category.
 example:
+
 .. code-block:: python
 
     {
@@ -53,6 +56,7 @@ OrdinalEncoder
 Use for ordinal data.
 ``window`` is the allowed similarity leakage between closed values.
 example:
+
 .. code-block:: python
 
     {
@@ -69,6 +73,7 @@ BinEncoder
 Use for binning data.
 ``values`` is the boundaries of the bins.
 example:
+
 .. code-block:: python
 
     {
@@ -81,9 +86,13 @@ example:
 BinOrdinalEncoder
 """""""""
 Use for binning ordinal data.
+
 ``values`` is the boundaries of the bins.
+
 ``window`` is the allowed similarity leakage between closed values.
+
 example:
+
 .. code-block:: python
 
     {
@@ -98,6 +107,7 @@ HierarchyEncoder
 """""""""
 Use for hierarchical data.
 example:
+
 .. code-block:: python
 
     {
