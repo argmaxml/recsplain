@@ -14,7 +14,7 @@ Import the package using the following import statement.
 
 .. code-block:: python
 
-    import recssplain as rx
+    import recsplain as rx
 
 
 Running Server
@@ -39,8 +39,13 @@ Instead of calling the package methods, call the routes to index, configure, sea
 
 Follow the same steps as in the :doc:`get-started` document for configuring and indexing before searching by item or user.
 
-Send data in the body of the HTTP requests and get data in the HTTP response body.
+Steps are:
+    1. init_schema - create the schema
+    2. index_item - index items
+    3. index_user - index users
 
-After you index and configure, send an item or user to the system and get explainable recommendations in response.
+After you index and configure, send an item or user to the system and get explainable recommendations in response by using ``query`` and ``user`` Respectively.
+
+Send data in the body of the HTTP requests and get data in the HTTP response body.
 
 .. image:: images/explanations.png

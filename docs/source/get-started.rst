@@ -32,7 +32,7 @@ Import the package using the following import statement.
 
 .. code-block:: python
 
-    import recssplain as rx
+    import recsplain as rx
 
 .. note:: 
    Learn more about the method in the :doc:`installation` reference.
@@ -43,6 +43,16 @@ Import the package using the following import statement.
 Configuration
 ---------------------------------------------------------
 
+First, you need to do is to configure the user recommendation strategy by using:
+
+.. code-block:: python
+
+    rec_strategy = rx.AvgUserStrategy()
+
+
+.. note:: 
+   More strategies to come.
+
 Use the ``init_schema`` method to configure the system so that it knows how to partition and compare feature vectors.
 
 Here is an example of how to call the ``init_schema`` method.
@@ -50,11 +60,16 @@ Here is an example of how to call the ``init_schema`` method.
 .. literalinclude:: init_schema_example.py
   :language: python
 
+Weights are used to set the relative importance the system should attribute to this feature in the similarity check.
+
 This is the response from ``init_schema``.
 
 .. literalinclude:: init_schema_response.py
   :language: python
 
+.. note:: 
+ Encoder type one-hot save one spot for unknown ``feature_sizes`` so the size is N + 1.
+ 
 .. note:: 
    Learn more about the method in the :doc:`configuration <init-schema>` reference.
 
@@ -81,6 +96,9 @@ This is the response from ``index``.
 
 .. note::
    When reusing the index method, using the same id twice creates duplicate entries in the index.
+   In the example below the index method is called twice with the same entry. In the index table both entries are created.
+
+.. image:: images/index_duplicate.png
 
 .. note:: 
    Learn more about the method in the :doc:`index <data-index>` reference.
@@ -108,7 +126,7 @@ This is the response from ``query``.
 .. note:: 
    Learn more about the method in the :doc:`item similarity <item-query>` reference.
 
-
+ 
 .. _user-section:
 
 User Preference

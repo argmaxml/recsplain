@@ -23,7 +23,7 @@ def parse_server_name(sname):
 class FlatFaiss:
     def __init__(self, space, dim, index_factory, **kwargs):
         if index_factory == '':
-            index_factory = 'IVF128,Flat'
+            index_factory = 'Flat'
         if space in ['ip', 'cosine']:
             self.index = faiss.index_factory(dim, index_factory, faiss.METRIC_INNER_PRODUCT)
             if space == 'cosine':

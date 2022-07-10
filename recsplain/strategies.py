@@ -176,6 +176,8 @@ class BaseStrategy:
     def query(self, data, k, explain=False):
         try:
             partition_nums = self.schema.partition_num(data)
+            if type(partition_nums) != list:
+                partition_nums = [partition_nums]
         except Exception as e:
             raise Exception("Error in partitioning: " + str(e))
         try:
