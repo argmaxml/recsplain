@@ -16,7 +16,7 @@ class BinOrdinalTest(unittest.TestCase):
             "values": [2, 4],
             "type": "binordinal",
             "window": [0.1,1,0.2],
-            "weight": 3
+            "weight": np.sqrt(3)
             },
         ],
             "metric": "l2"
@@ -29,7 +29,7 @@ class BinOrdinalTest(unittest.TestCase):
         strategy.init_schema(**self.schema)
         data = {"id":1, "language_code":"en", "average_rating": 3.72}
         vec = strategy.encode(data)
-        self.assertTrue(np.allclose(vec, [0,1,0]))
+        self.assertTrue(np.allclose(vec,  [0,np.sqrt(3),0]))
 
     def test_window(self):
         self.schema["encoders"][0]["window"] = [0.1,1,0.2]
