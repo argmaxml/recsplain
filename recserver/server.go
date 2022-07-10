@@ -64,6 +64,16 @@ func start_server(schema Schema, variants []Variant, indices gcache.Cache, item_
 		return c.SendString("{\"Status\": \"OK\"}")
 	})
 
+	app.Get("/variants", func(c *fiber.Ctx) error {
+		var err error
+		filename := "variants.json"
+		content, err := os.ReadFile(filename)
+		if err != nil {
+			return c.SendString("{\"Status\": \"Error\"}")
+		}
+		return c.SendString("{\"Status\": \"OK\", \"Data\": " + string(content) + "}")
+	})
+
 	app.Post("/encode", func(c *fiber.Ctx) error {
 		var query map[string]string
 		json.Unmarshal(c.Body(), &query)
