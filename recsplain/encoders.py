@@ -111,6 +111,13 @@ class PartitionSchema:
                 if feature_weight != 0:
                     if type(encoder) == NumericEncoder:
                         encoding.append(encoder.encode(x[feature]) * feature_weight)
+                    elif type(encoder) == BinOrdinalEncoder:
+                        ind = 0
+                        while ind < len(encoder.values) and x[feature] > encoder.values[ind]:
+                            ind += 1
+                        encoding.append(encoder.encode(encoder.values[ind]) * feature_weight)
+                    elif type(encoder) == OrdinalEncoder:
+                        encoding.append(encoder.encode(x[feature]) * feature_weight)
                     else:
                         value_index = self.feature_mapping[feature][x[feature]]
                         embedding = self.feature_embeddings[feature][value_index] * feature_weight
@@ -280,8 +287,8 @@ class OrdinalEncoder(OneHotEncoder):
         except ValueError:  # Unknown
             vec[0] = 1
             return vec
-        vec[1 + ind] = self.window[len(self.window) // 2 + 1]
-        for offset in range(len(self.window) // 2):
+        vec[ind + 1] = self.window[len(self.window) // 2]
+        for offset in range(1, len(self.window) // 2 + 1):
             if ind - offset >= 0:
                 vec[1 + ind - offset] = self.window[len(self.window) // 2 - offset]
             if ind + offset < len(self.values):
@@ -320,11 +327,11 @@ class BinOrdinalEncoder(BinEncoder):
         ind = 0
         while ind < len(self.values) and value > self.values[ind]:
             ind += 1
-        vec[ind] = self.window[len(self.window) // 2 + 1]
-        for offset in range(len(self.window) // 2):
+        vec[ind] = self.window[len(self.window) // 2]
+        for offset in range(1, len(self.window) // 2 + 1):
             if ind - offset >= 0:
                 vec[ind - offset] = self.window[len(self.window) // 2 - offset]
-            if ind + offset < len(self.values):
+            if ind + offset <= len(self.values):
                 vec[ind + offset] = self.window[len(self.window) // 2 + offset]
         return vec
     
