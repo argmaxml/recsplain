@@ -6,6 +6,7 @@ from .tree_helpers import lowest_depth, get_values_nested
 import requests
 from smart_open import open
 from collections import defaultdict
+from gensim.models import Word2Vec
 
 
 class PartitionSchema:
@@ -60,6 +61,10 @@ class PartitionSchema:
                 encoder_dict[enc["field"]] = QwakEncoder(column=enc["field"], column_weight=enc["weight"],
                                                             length=enc["length"], entity_name=enc["entity"], default=enc.get("default"),
                                                             feature_name=enc["feature"], environment=enc["environment"])
+            elif enc["type"] in ["word2vec", "w2v", "word_to_vec"]:
+                encoder_dict[enc["field"]] = NumpyEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                          values=enc["values"], default=enc.get("default"),
+                                                          npy=npy["url"], model=model[])
             else:
                 raise TypeError("Unknown type {t} in field {f}".format(f=enc["field"], t=enc["type"]))
         return encoder_dict
@@ -434,7 +439,6 @@ class QwakEncoder(BaseEncoder):
         return res
 
 
-
     def __len__(self):
         return self.length
 
@@ -454,4 +458,33 @@ class QwakEncoder(BaseEncoder):
     def encode(self, value):
         val = self.get_feature(value)
         return self.json_encode(val)
+
+
+class Word2VecEncoder(BaseEncoder):
+    def __init__(self, column, column_weight, values, npy, model, **kwargs):
+        super().__init__(column = column, column_weight=column_weight, values=values, npy=npy, model=model, **kwargs)
+        with open(npy, 'rb') as f:
+            self.embedding = np.load(f)
+
+        with open(model, 'rb') as f:
+            self.model = Word2Vec.load(f)
+
+        if type(values)==list:
+            self.ids = values
+        else:
+            with open(values, 'r') as f:
+                self.ids = [l.strip() for l in f.readlines() if l.strip()!=""]
+        assert self.embedding.shape[0]==len(self.ids), "Dimension mismatch between ids and embedding"
+        assert (self.embeddig.vectors==self.model.wv.vectors).all(), "Model word-vector not fitting embedding"
+        self.nonzero_elements=1
+
+    def __len__(self):
+        return self.embedding.shape[1]
+
+    def encode(self, value):
+        try:
+            idx = self.ids.index(value)
+        except ValueError:
+            return np.zeros(len(self.ids))
+        return self.embedding[idx,:]
 
