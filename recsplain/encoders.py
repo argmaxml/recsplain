@@ -9,9 +9,14 @@ from collections import defaultdict
 
 
 class PartitionSchema:
-    __slots__=["encoders", "filters", "partitions", "dim", "metric", "defaults", "id_col", "user_encoders",
-               "feature_embeddings", "feature_mapping", "item_mappings", "index_factory"]
-    def __init__(self, encoders, filters=[], metric='ip', id_col="id", user_encoders=[], index_factory="Flat"):
+    __slots__ = ["encoders", "filters", "partitions", "dim", "metric", "defaults", "id_col", "user_encoders",
+                 "feature_embeddings", "feature_mapping", "item_mappings", "index_factory",
+                 "strategies"]
+
+    def __init__(self, encoders, strategies=[], filters=[], metric='ip', id_col="id",
+                 user_encoders={}, index_factory="Flat"):
+
+        self.strategies = strategies
         self.metric = metric
         self.index_factory = index_factory
         self.id_col = id_col
@@ -20,49 +25,55 @@ class PartitionSchema:
         self.user_encoders = self._parse_encoders(user_encoders)
         self.defaults = {}
         self.item_mappings = defaultdict(dict)
-        for f, e in self.encoders.items():
+        for f, e in self.encoders[self.base_strategy_id()].items():
             if e.default is not None:
                 self.defaults[f] = e.default
-        self.feature_embeddings, self.feature_mapping = self._create_feature_mapping(self.encoders.items())
-        self.dim = sum(map(len, filter(lambda e: e.column_weight!=0, self.encoders.values())))
+        feature_embeddings, self.feature_mapping = self._create_feature_mapping(self.encoders[self.base_strategy_id()].items())
+        self.feature_embeddings = {self.base_strategy_id(): feature_embeddings}
+        self.dim = sum(map(len, filter(lambda e: e.column_weight != 0, self.encoders[self.base_strategy_id()].values())))
+
     def _parse_encoders(self, encoders):
-        encoder_dict = dict()
-        for enc in encoders:
-            if enc["type"] in ["onehot", "one_hot", "one hot", "oh"]:
-                encoder_dict[enc["field"]] = OneHotEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                    values=enc["values"], default=enc.get("default"))
-            elif enc["type"] in ["strictonehot", "strict_one_hot", "strict one hot", "soh"]:
-                encoder_dict[enc["field"]] = StrictOneHotEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                            values=enc["values"], default=enc.get("default"))
-            elif enc["type"] in ["num", "numeric"]:
-                encoder_dict[enc["field"]] = NumericEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                    values=enc["values"], default=enc.get("default"))
-            elif enc["type"] in ["ordinal", "ordered"]:
-                encoder_dict[enc["field"]] = OrdinalEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                    values=enc["values"], default=enc.get("default"), window=enc["window"])
-            elif enc["type"] in ["bin", "binning"]:
-                encoder_dict[enc["field"]] = BinEncoder(column=enc["field"], column_weight=enc["weight"],
-                    values=enc["values"], default=enc.get("default"))
-            elif enc["type"] in ["binordinal", "bin_ordinal", "bin ordinal", "ord bin"]:
-                encoder_dict[enc["field"]] = BinOrdinalEncoder(column=enc["field"], column_weight=enc["weight"],
-                    values=enc["values"], default=enc.get("default"), window=enc["window"])
-            elif enc["type"] in ["hier", "hierarchy", "nested"]:
-                encoder_dict[enc["field"]] = HierarchyEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                        values=enc["values"], default=enc.get("default"),
-                                                        similarity_by_depth=enc["similarity_by_depth"])
-            elif enc["type"] in ["numpy", "np", "embedding"]:
-                encoder_dict[enc["field"]] = NumpyEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                            values=enc["values"], default=enc.get("default"), npy=npy["url"])
-            elif enc["type"] in ["JSON", "json", "js"]:
-                encoder_dict[enc["field"]] = JSONEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                            values=enc["values"], default=enc.get("default"), length=enc["length"])
-            elif enc["type"] in ["qwak"]:
-                encoder_dict[enc["field"]] = QwakEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                            length=enc["length"], entity_name=enc["entity"], default=enc.get("default"),
-                                                            feature_name=enc["feature"], environment=enc["environment"])
-            else:
-                raise TypeError("Unknown type {t} in field {f}".format(f=enc["field"], t=enc["type"]))
-        return encoder_dict
+        strategy_encoders_dict = dict()
+        for strategy, strategy_encoders in encoders.items():
+            encoder_dict = dict()
+            for enc in strategy_encoders:
+                if enc["type"] in ["onehot", "one_hot", "one hot", "oh"]:
+                    encoder_dict[enc["field"]] = OneHotEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                        values=enc["values"], default=enc.get("default"))
+                elif enc["type"] in ["strictonehot", "strict_one_hot", "strict one hot", "soh"]:
+                    encoder_dict[enc["field"]] = StrictOneHotEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                                values=enc["values"], default=enc.get("default"))
+                elif enc["type"] in ["num", "numeric"]:
+                    encoder_dict[enc["field"]] = NumericEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                        values=enc["values"], default=enc.get("default"))
+                elif enc["type"] in ["ordinal", "ordered"]:
+                    encoder_dict[enc["field"]] = OrdinalEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                        values=enc["values"], default=enc.get("default"), window=enc["window"])
+                elif enc["type"] in ["bin", "binning"]:
+                    encoder_dict[enc["field"]] = BinEncoder(column=enc["field"], column_weight=enc["weight"],
+                        values=enc["values"], default=enc.get("default"))
+                elif enc["type"] in ["binordinal", "bin_ordinal", "bin ordinal", "ord bin"]:
+                    encoder_dict[enc["field"]] = BinOrdinalEncoder(column=enc["field"], column_weight=enc["weight"],
+                        values=enc["values"], default=enc.get("default"), window=enc["window"])
+                elif enc["type"] in ["hier", "hierarchy", "nested"]:
+                    encoder_dict[enc["field"]] = HierarchyEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                            values=enc["values"], default=enc.get("default"),
+                                                            similarity_by_depth=enc["similarity_by_depth"])
+                elif enc["type"] in ["numpy", "np", "embedding"]:
+                    encoder_dict[enc["field"]] = NumpyEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                                values=enc["values"], default=enc.get("default"), npy=npy["url"])
+                elif enc["type"] in ["JSON", "json", "js"]:
+                    encoder_dict[enc["field"]] = JSONEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                                values=enc["values"], default=enc.get("default"), length=enc["length"])
+                elif enc["type"] in ["qwak"]:
+                    encoder_dict[enc["field"]] = QwakEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                                length=enc["length"], entity_name=enc["entity"], default=enc.get("default"),
+                                                                feature_name=enc["feature"], environment=enc["environment"])
+                else:
+                    raise TypeError("Unknown type {t} in field {f}".format(f=enc["field"], t=enc["type"]))
+            strategy_encoders_dict[strategy] = encoder_dict
+        return strategy_encoders_dict
+
     def _parse_filters(self, filters):
         ret_filters = []
         partitions = [("ALL",)]
@@ -70,14 +81,18 @@ class PartitionSchema:
             partitions = list(itertools.product(*[f["values"] for f in filters]))
             ret_filters = [f["field"] for f in filters]
         return ret_filters, partitions
+
     def _unparse_encoders(self, encoders):
-        return [dict({"field":k, "values": e.values, "type": type(e).__name__.replace("Encoder", "").lower(), "weight": e.column_weight, "default": e.default}, **e.special_properties()) for k, e in encoders.items()]
+        return [dict({"field": k, "values": e.values, "type": type(e).__name__.replace("Encoder", "").lower(),
+                      "weight": e.column_weight, "default": e.default}, **e.special_properties())
+                for k, e in encoders.items()]
+
     def _unparse_filters(self, filters, partitions):
         ret_filters = collections.defaultdict(set)
         for i, k in enumerate(filters):
             for v in map(at(i), partitions):
                 ret_filters[k].add(v)
-        ret_filters = [{"field":k, "values": list(v)} for k,v in ret_filters.items()]
+        ret_filters = [{"field": k, "values": list(v)} for k, v in ret_filters.items()]
         return ret_filters
 
     def _create_feature_mapping(self, encoders):
@@ -91,85 +106,119 @@ class PartitionSchema:
             mapping_dict[name] = {v: i for i, v in enumerate(encoder.values)}
         return embeddings_dict, mapping_dict
 
+    def add_variant(self, variant):
+        self.encoders[variant['id']] = self.encoders[self.base_strategy_id()].copy()
+        for feature_name, weight in variant['weights'].items():
+            self.encoders[variant['id']][feature_name].column_weight = weight
+        variant_dict = {'id': variant['id'], 'name': variant['name'],
+                        'encoders': self._unparse_encoders(self.encoders[variant['id']])}
+        feature_embeddings, _ = self._create_feature_mapping(self.encoders[variant['id']].items())
+        self.feature_embeddings[variant['id']] = feature_embeddings
 
-    def encode(self, x, weights=None):
-        if type(x)==list:
-            return np.vstack([self.encode(t,weights) for t in x])
-        elif type(x)==dict:
+
+        print("Added variant {v}".format(v=variant['id']))
+        return variant_dict
+
+
+
+    def encode(self, x, strategy_id=None, weights=None):
+        if not strategy_id:
+            strategy_id = self.base_strategy_id()
+            # TODO: raise error if no base strategy
+        if type(x) == list:
+            return np.vstack([self.encode(t, weights) for t in x])
+        elif type(x) == dict:
             # Add default values to dict
-            for f,d in self.defaults.items():
+            for f, d in self.defaults.items():
                 if f not in x:
                     x[f] = d
             if weights is None:
-                weights_mapping = {k: v for k, v in zip(self.encoders.keys(), [encoder.normalized_column_weight() for
-                                                                               encoder in self.encoders.values()])}
+                weights_mapping = {k: v for k, v in zip(self.encoders[strategy_id].keys(),
+                                                        [encoder.normalized_column_weight() for
+                                                         encoder in self.encoders[strategy_id].values()])}
             else:
-                weights_mapping = {k: v for k, v in zip(self.encoders.keys(), weights)}
+                weights_mapping = {k: v for k, v in zip(self.encoders[strategy_id].keys(), weights)}
             encoding = []
-            for feature, encoder in self.encoders.items():
+            for feature, encoder in self.encoders[strategy_id].items():
                 feature_weight = weights_mapping.get(feature, 0)
                 if feature_weight != 0:
                     if type(encoder) == NumericEncoder:
                         encoding.append(encoder.encode(x[feature]) * feature_weight)
                     else:
                         value_index = self.feature_mapping[feature][x[feature]]
-                        embedding = self.feature_embeddings[feature][value_index] * feature_weight
+                        embedding = self.feature_embeddings[strategy_id][feature][value_index] * feature_weight
                         encoding.append(embedding)
             return np.concatenate(encoding)
-            assert len(weights)==len(self.encoders), "Invalid number of weight vector {w}".format(w=len(weights))
+            assert len(weights) == len(self.encoders), "Invalid number of weight vector {w}".format(w=len(weights))
         else:
             raise TypeError("Usupported type for encode {t}".format(t=type(x)))
 
-    def add_mapping(self, partition_num, ids, data):
+    def add_mapping(self, partition_num, ids, data, strategy_id=None):
+        if not strategy_id:
+            strategy_id = self.base_strategy_id()
         for index, datum in zip(ids, data):
-            item_array = [-1] * len(self.encoders)
-            for i, (feature, encoder) in enumerate(self.encoders.items()):
-                item_array[i] = self.feature_mapping[feature][datum[feature]] if feature in self.feature_mapping else float(datum[feature])
+            item_array = [-1] * len(self.encoders[strategy_id])
+            for i, (feature, encoder) in enumerate(self.encoders[strategy_id].items()):
+                item_array[i] = self.feature_mapping[feature][datum[feature]] if feature in self.feature_mapping \
+                    else float(datum[feature])
             self.item_mappings[partition_num][index] = item_array
 
-    def component_breakdown(self):
-        start=0
+    def component_breakdown(self, strategy_id=None):
+        if not strategy_id:
+            strategy_id = self.base_strategy_id()
+        start = 0
         breakdown = {}
-        for col,enc in self.encoders.items():
-            if enc.column_weight==0:
+        for col, enc in self.encoders[strategy_id].items():
+            if enc.column_weight == 0:
                 continue
             end = start + len(enc)
             breakdown[col] = (start, end)
         return breakdown
+
     def partition_num(self, x):
         if not any(self.filters):
             return 0
         combined_key = at(*(self.filters))(x)
-        if type(combined_key)!=tuple:
-            combined_key=(combined_key,)
-        if all(type(k)!=list for k in combined_key):
+        if type(combined_key) != tuple:
+            combined_key = (combined_key,)
+        if all(type(k) != list for k in combined_key):
             # one partition to lookup
             return self.partitions.index(combined_key)
         # multiple partitions
         combined_key_list = []
         for k in combined_key:
-            if type(k)!=list:
-                k=[k]
+            if type(k) != list:
+                k = [k]
             combined_key_list.append(k)
         ret = []
         for combined_key in itertools.product(*combined_key_list):
             ret.append(self.partitions.index(combined_key))
         return ret
+
     def to_dict(self):
         filters = self._unparse_filters(self.filters, self.partitions)
-        encoders = self._unparse_encoders(self.encoders)
-        user_encoders = self._unparse_encoders(self.user_encoders)
-        return {"encoders": encoders, "filters":filters, "metric": self.metric, "id_col": self.id_col, "user_encoders": user_encoders}
+        encoders = {strategy_id: self._unparse_encoders(strategy_encoders) for strategy_id, strategy_encoders in
+                    self.encoders.items()}
+        user_encoders = {strategy_id: self._unparse_encoders(user_encoders) for strategy_id, user_encoders in
+                         self.user_encoders}
+        return {"encoders": encoders, "filters": filters, "metric": self.metric, "id_col": self.id_col,
+                "user_encoders": user_encoders, "strategies": self.strategies}
 
-    def restore_vector_with_index(self, partition_num, index):
+    def restore_vector_with_index(self, partition_num, index, strategy_id=None):
+        if not strategy_id:
+            strategy_id = self.base_strategy_id()
         mapping = self.item_mappings[partition_num][index]
         output = []
-        for i, (name, encoder) in enumerate(self.encoders.items()):
-            if name in self.feature_embeddings:
-                output.extend(self.feature_embeddings[name][mapping[i]] * encoder.normalized_column_weight())
+        for i, (name, encoder) in enumerate(self.encoders[strategy_id].items()):
+            if name in self.feature_embeddings[strategy_id]:
+                output.extend(self.feature_embeddings[strategy_id][name][mapping[i]]
+                              * encoder.normalized_column_weight())
             else:
                 output.extend([mapping[i] * encoder.normalized_column_weight()])
         return np.array(output).reshape(1, self.dim)
+
+    def base_strategy_id(self):
+        return [strategy['id'] for strategy in self.strategies if 'is_base' in strategy][0]
 
 
 class BaseEncoder:
@@ -177,7 +226,7 @@ class BaseEncoder:
     def __init__(self, **kwargs):
         self.column = ''
         self.column_weight = 1
-        self.nonzero_elements=1
+        self.nonzero_elements = 1
         self.default = kwargs.get("default")
         self.__dict__.update(kwargs)
 
@@ -196,50 +245,52 @@ class BaseEncoder:
     def normalized_column_weight(self):
         return self.column_weight / np.sqrt(self.nonzero_elements)
 
+
 class CachingEncoder(BaseEncoder):
-    cache_max_size=1024
+    cache_max_size = 1024
 
     def __init__(self, **kwargs):
         # defaults:
         self.column = ''
         self.column_weight = 1
         self.values = []
-        self.nonzero_elements=1
+        self.nonzero_elements = 1
         self.default = kwargs.get("default")
         # override from kwargs
         self.__dict__.update(kwargs)
         #caching
-        self.cache={}
-        self.cache_hits=collections.defaultdict(int)
+        self.cache = {}
+        self.cache_hits = collections.defaultdict(int)
 
     def __call__(self, value):
         """Calls encode, multiplies by weight, cached"""
         if value in self.cache:
-            self.cache_hits[value]+=1
+            self.cache_hits[value] += 1
             return self.cache[value]
-        ret = self.encode(value)*self.column_weight*np.ones(len(self)) * (1/np.sqrt(self.nonzero_elements))
-        if (self.cache_max_size is None) or (len(self.cache)<self.cache_max_size):
-            self.cache[value]=ret
+        ret = self.encode(value) * self.column_weight * np.ones(len(self)) * (1/np.sqrt(self.nonzero_elements))
+        if (self.cache_max_size is None) or (len(self.cache) < self.cache_max_size):
+            self.cache[value] = ret
             return ret
         # cache cleanup
-        min_key = sorted([(v,k) for k,v in self.cache_hits.items()])[0][1]
+        min_key = sorted([(v, k) for k, v in self.cache_hits.items()])[0][1]
         del self.cache_hits[min_key]
         del self.cache[min_key]
-        self.cache[value]=ret
+        self.cache[value] = ret
         return ret
 
-    def flush_cache(self,new_size=1024):
-        self.cache_max_size=new_size
-        self.cache={}
-        self.cache_hits=collections.defaultdict(int)
-
+    def flush_cache(self, new_size=1024):
+        self.cache_max_size = new_size
+        self.cache = {}
+        self.cache_hits = collections.defaultdict(int)
 
 
 class NumericEncoder(BaseEncoder):
     def __len__(self):
         return 1
+
     def encode(self, value):
         return np.array([float(value)])
+
 
 class OneHotEncoder(CachingEncoder):
 
@@ -254,6 +305,7 @@ class OneHotEncoder(CachingEncoder):
             vec[0] = 1
         return vec
 
+
 class StrictOneHotEncoder(CachingEncoder):
     def __len__(self):
         return len(self.values)
@@ -266,14 +318,16 @@ class StrictOneHotEncoder(CachingEncoder):
             pass
         return vec
 
+
 class OrdinalEncoder(OneHotEncoder):
     def __init__(self, column, column_weight, values, window, **kwargs):
-        super().__init__(column = column, column_weight=column_weight, values=values, window = window, **kwargs)
+        super().__init__(column=column, column_weight=column_weight, values=values, window=window, **kwargs)
         self.window = window
-        self.nonzero_elements=len(window)
+        self.nonzero_elements = len(window)
 
     def encode(self, value):
-        assert len(self.window) % 2 == 1, "Window size should be odd: window: {w}, value: {v}".format(w=self.window,v=value)
+        assert len(self.window) % 2 == 1, "Window size should be odd: window: {w}, value: {v}".format(w=self.window,
+                                                                                                      v=value)
         vec = np.zeros(1 + len(self.values))
         try:
             ind = self.values.index(value)
@@ -290,7 +344,7 @@ class OrdinalEncoder(OneHotEncoder):
         return vec
 
     def special_properties(self):
-        return {"widnow": self.window}
+        return {"window": self.window}
 
 
 class BinEncoder(CachingEncoder):
@@ -310,9 +364,9 @@ class BinEncoder(CachingEncoder):
 
 class BinOrdinalEncoder(BinEncoder):
     def __init__(self, column, column_weight, values, window, **kwargs):
-        super().__init__(column = column, column_weight=column_weight, values=values, window = window, **kwargs)
+        super().__init__(column=column, column_weight=column_weight, values=values, window=window, **kwargs)
         self.window = window
-        self.nonzero_elements=len(window)
+        self.nonzero_elements = len(window)
 
     def encode(self, value):
         value = float(value)
@@ -368,19 +422,20 @@ class HierarchyEncoder(CachingEncoder):
     def special_properties(self):
         return {"similarity_by_depth": self.similarity_by_depth}
 
+
 class NumpyEncoder(BaseEncoder):
     def __init__(self, column, column_weight, values, npy, **kwargs):
-        super().__init__(column = column, column_weight=column_weight, values=values, npy=npy, **kwargs)
+        super().__init__(column=column, column_weight=column_weight, values=values, npy=npy, **kwargs)
         with open(npy, 'rb') as f:
             self.embedding = np.load(f)
 
-        if type(values)==list:
+        if type(values) == list:
             self.ids = values
         else:
             with open(values, 'r') as f:
-                self.ids = [l.strip() for l in f.readlines() if l.strip()!=""]
-        assert self.embedding.shape[0]==len(self.ids), "Dimension mismatch between ids and embedding"
-        self.nonzero_elements=1
+                self.ids = [l.strip() for l in f.readlines() if l.strip() != ""]
+        assert self.embedding.shape[0] == len(self.ids), "Dimension mismatch between ids and embedding"
+        self.nonzero_elements = 1
 
     def __len__(self):
         return self.embedding.shape[1]
@@ -390,7 +445,8 @@ class NumpyEncoder(BaseEncoder):
             idx = self.ids.index(value)
         except ValueError:
             return np.zeros(len(self.ids))
-        return self.embedding[idx,:]
+        return self.embedding[idx, :]
+
 
 class JSONEncoder(CachingEncoder):
 
@@ -400,31 +456,33 @@ class JSONEncoder(CachingEncoder):
     def encode(self, value):
         val = value.translate({ord('('):'[',ord(')'):']'})
         val = json.loads(val)
-        if type(val)==dict: # sparse vector
+        if type(val) == dict:  # sparse vector
             vec = np.zeros(len(self))
-            for k,v in val.items():
-                vec[int(k)]=v
-        elif type(val)==list:
+            for k, v in val.items():
+                vec[int(k)] = v
+        elif type(val) == list:
             vec = np.array(val)
         else:
-            raise TypeError(str(type(val))+ " is not supported")
+            raise TypeError(str(type(val)) + " is not supported")
         return vec
 
+
 class QwakEncoder(BaseEncoder):
-    def __init__(self, column, column_weight, environment, length, entity_name, api_key=None,**kwargs):
-        super().__init__(column = column, column_weight=column_weight, length=length,
-            entity_name=entity_name, environment=environment,**kwargs)
+    def __init__(self, column, column_weight, environment, length, entity_name, api_key=None, **kwargs):
+        super().__init__(column=column, column_weight=column_weight, length=length, entity_name=entity_name,
+                         environment=environment, **kwargs)
         if api_key is None:
             api_key = os.environ.get("QWAK_API")
         self.init_access_token(api_key)
 
     def init_access_token(self, api_key):
-        self.access_token = requests.post("https://grpc.qwak.ai/api/v1/authentication/qwak-api-key", json={"qwakApiKey": api_key}).json()["accessToken"]
+        self.access_token = requests.post("https://grpc.qwak.ai/api/v1/authentication/qwak-api-key",
+                                          json={"qwakApiKey": api_key}).json()["accessToken"]
 
     def get_feature(self, entity_value):
-        url = "https://api."+str(self.environment)+".qwak.ai/api/v1/features"
+        url = "https://api." + str(self.environment)+".qwak.ai/api/v1/features"
         body = {
-            "features":[{"batchFeature":{"name": self.column}}],
+            "features": [{"batchFeature": {"name": self.column}}],
             "entity": {"name": self.entity_name, "value": entity_value}
         }
         res = requests.post(url, headers={"Authorization": "Bearer "+self.access_token}, json=body).json()
@@ -433,22 +491,20 @@ class QwakEncoder(BaseEncoder):
         # TODO: Do qwak support vector features ?
         return res
 
-
-
     def __len__(self):
         return self.length
 
     def json_encode(self, value):
         val = value.translate({ord('('):'[',ord(')'):']'})
         val = json.loads(val)
-        if type(val)==dict: # sparse vector
+        if type(val) == dict:  # sparse vector
             vec = np.zeros(len(self))
-            for k,v in val.items():
-                vec[int(k)]=v
-        elif type(val)==list:
+            for k, v in val.items():
+                vec[int(k)] = v
+        elif type(val) == list:
             vec = np.array(val)
         else:
-            raise TypeError(str(type(val))+ " is not supported")
+            raise TypeError(str(type(val)) + " is not supported")
         return vec
 
     def encode(self, value):

@@ -45,7 +45,8 @@ class Column(BaseModel):
 
 
 class Schema(BaseModel):
-    encoders: List[Column]
+    encoders: Any
+    strategies: List[Dict[str, Any]]
     metric: Optional[str] = 'ip'
     index_factory: Optional[str] = ''
     filters: Optional[List[Column]] = []
@@ -54,17 +55,19 @@ class Schema(BaseModel):
     
     def to_dict(self):
         return {
+            "strategies": self.strategies,
             "metric": self.metric,
             "index_factory": self.index_factory,
             "filters": [vars(c) for c in self.filters],
-            "encoders": [vars(c) for c in self.encoders],
+            "encoders": self.encoders,
         }
 
 
 class KnnQuery(BaseModel):
     data: Dict[str, Union[List[str],str]]
     k: int
-    explain:Optional[bool]=False
+    explain: Optional[bool]=False
+
 
 class KnnUserQuery(BaseModel):
     item_history: List[str]
@@ -90,9 +93,10 @@ async def api_partitions():
 def api_fetch(lbls: List[str]):
     if not strategy.schema_initialized():
         return {"status": "error", "message": "Schema not initialized"}
-    if strategy.get_total_items()==0:
+    if strategy.get_total_items() == 0:
         return {"status": "error", "message": "No items are indexed"}
     return strategy.fetch(lbls)
+
 
 @api.post("/encode")
 async def api_encode(data: Dict[str, str]):
@@ -109,6 +113,7 @@ def init_schema(sr: Schema):
     free_memory()
     return {"status": "OK", "partitions": len(partitions), "vector_size":strategy.get_embedding_dimension(), "feature_sizes":enc_sizes, "total_items":strategy.get_total_items()}
 
+
 @api.post("/get_schema")
 def get_schema():
     if not strategy.schema_initialized():
@@ -116,23 +121,30 @@ def get_schema():
     else:
         return strategy.schema.to_dict()
 
+
 @api.post("/index")
-async def api_index(data: Union[List[Dict[str, str]], str]):
+async def api_index(data: Union[List[Dict[str, str]], str], strategy_id: Optional[str] = None):
     if not strategy.schema_initialized():
         return {"status": "error", "message": "Schema not initialized"}
-    if type(data)==str and data.endswith(".json"):
+    if type(data) == str and data.endswith(".json"):
         # read data remotely
         with open(data, 'r') as f:
             data = json.load(f)
-    elif type(data)==str and data.endswith(".csv"):
+    elif type(data) == str and data.endswith(".csv"):
         # read csv remotely
         data = pd.read_csv(data)
-        affected_partitions = strategy.index_dataframe(data)
+        affected_partitions = strategy.index_dataframe(data, strategy_id=strategy_id)
         return {"status": "OK", "affected_partitions": affected_partitions}
-    errors, affected_partitions = strategy.index(data)
+    errors, affected_partitions = strategy.index(data, strategy_id=strategy_id)
     if any(errors):
         return {"status": "error", "items": errors}
     return {"status": "OK", "affected_partitions": affected_partitions}
+
+
+@api.post("/add_variant")
+async def add_variant(variant: Dict[str, Union[str, Dict[str, int]]]): # data: Union[List[Dict[str, str]], str]
+    strategy.add_variant(variant)
+    return {"status": "OK"}
 
 
 @api.post("/item_query")
@@ -142,7 +154,7 @@ async def api_query(query: KnnQuery):
     if strategy.get_total_items()==0:
         return {"status": "error", "message": "No items are indexed"}
     try:
-        labels,distances, explanation =strategy.query(query.data, query.k, query.explain)
+        labels,distances, explanation = strategy.query(query.data, query.k, query.explain)
         if any(explanation):
             return {"status": "OK", "ids": labels, "distances": distances, "explanation":explanation}
         return {"status": "OK", "ids": labels, "distances": distances}
