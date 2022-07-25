@@ -109,7 +109,7 @@ class PartitionSchema:
             for feature, encoder in self.encoders.items():
                 feature_weight = weights_mapping.get(feature, 0)
                 if feature_weight != 0:
-                    if (type(encoder) == NumericEncoder) or (type(encoder) == type(encoder) == NumpyEncoder):
+                    if (type(encoder) == NumericEncoder) or (type(encoder) == NumpyEncoder):
                         encoding.append(encoder.encode(x[feature]) * feature_weight)
                     elif type(encoder) == BinOrdinalEncoder:
                         ind = 0
