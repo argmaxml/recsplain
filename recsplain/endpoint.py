@@ -67,6 +67,7 @@ class KnnQuery(BaseModel):
     data: Dict[str, Union[List[str],str]]
     k: int
     explain: Optional[bool]=False
+    strategy_id: Optional[str] = None
 
 
 class KnnUserQuery(BaseModel):
@@ -151,10 +152,10 @@ async def add_variant(variant: Dict[str, Union[str, Dict[str, int]]]): # data: U
 async def api_query(query: KnnQuery):
     if not strategy.schema_initialized():
         return {"status": "error", "message": "Schema not initialized"}
-    if strategy.get_total_items()==0:
+    if strategy.get_total_items() == 0:
         return {"status": "error", "message": "No items are indexed"}
     try:
-        labels,distances, explanation = strategy.query(query.data, query.k, query.explain)
+        labels, distances, explanation = strategy.query(query.data, query.k, query.strategy_id, query.explain)
         if any(explanation):
             return {"status": "OK", "ids": labels, "distances": distances, "explanation":explanation}
         return {"status": "OK", "ids": labels, "distances": distances}
