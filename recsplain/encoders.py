@@ -52,7 +52,7 @@ class PartitionSchema:
                                                         similarity_by_depth=enc["similarity_by_depth"])
             elif enc["type"] in ["numpy", "np", "embedding"]:
                 encoder_dict[enc["field"]] = NumpyEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                            values=enc["values"], default=enc.get("default"), npy=npy["url"])
+                                                            values=enc["values"], default=enc.get("default"), npy=enc["url"])
             elif enc["type"] in ["JSON", "json", "js"]:
                 encoder_dict[enc["field"]] = JSONEncoder(column=enc["field"], column_weight=enc["weight"],
                                                             values=enc["values"], default=enc.get("default"), length=enc["length"])
@@ -109,7 +109,7 @@ class PartitionSchema:
             for feature, encoder in self.encoders.items():
                 feature_weight = weights_mapping.get(feature, 0)
                 if feature_weight != 0:
-                    if type(encoder) == NumericEncoder:
+                    if (type(encoder) == NumericEncoder) or (type(encoder) == NumpyEncoder):
                         encoding.append(encoder.encode(x[feature]) * feature_weight)
                     elif type(encoder) == BinOrdinalEncoder:
                         ind = 0
