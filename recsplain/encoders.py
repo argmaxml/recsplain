@@ -396,7 +396,7 @@ class NumpyEncoder(BaseEncoder):
         try:
             idx = self.ids.index(value)
         except ValueError:
-            return np.zeros(len(self.ids))
+            return np.zeros(self.embedding.shape[1])
         return self.embedding[idx,:]
 
 class JSONEncoder(CachingEncoder):
