@@ -52,7 +52,7 @@ class PartitionSchema:
                                                         similarity_by_depth=enc["similarity_by_depth"])
             elif enc["type"] in ["numpy", "np", "embedding"]:
                 encoder_dict[enc["field"]] = NumpyEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                            values=enc["values"], default=enc.get("default"), npy=enc["url"])
+                                                            values=enc["values"], default=enc.get("default"), npy=enc["npy"])
             elif enc["type"] in ["JSON", "json", "js"]:
                 encoder_dict[enc["field"]] = JSONEncoder(column=enc["field"], column_weight=enc["weight"],
                                                             values=enc["values"], default=enc.get("default"), length=enc["length"])
@@ -166,7 +166,8 @@ class PartitionSchema:
         filters = self._unparse_filters(self.filters, self.partitions)
         encoders = self._unparse_encoders(self.encoders)
         user_encoders = self._unparse_encoders(self.user_encoders)
-        return {"encoders": encoders, "filters":filters, "metric": self.metric, "id_col": self.id_col, "user_encoders": user_encoders}
+        return {"encoders": encoders, "filters": filters, "index_factory": self.index_factory, "metric": self.metric,
+            "id_col": self.id_col, "user_encoders": user_encoders}
 
     def restore_vector_with_index(self, partition_num, index):
         mapping = self.item_mappings[partition_num][index]
@@ -399,6 +400,9 @@ class NumpyEncoder(BaseEncoder):
             return np.zeros(len(self.ids))
         return self.embedding[idx,:]
 
+    def special_properties(self):
+        return {"npy": self.npy}
+
 class JSONEncoder(CachingEncoder):
 
     def __len__(self):
@@ -416,6 +420,9 @@ class JSONEncoder(CachingEncoder):
         else:
             raise TypeError(str(type(val))+ " is not supported")
         return vec
+
+    def special_properties(self):
+        return {"similarity_by_depth": self.similarity_by_depth}
 
 class QwakEncoder(BaseEncoder):
     def __init__(self, column, column_weight, environment, length, entity_name, api_key=None,**kwargs):
