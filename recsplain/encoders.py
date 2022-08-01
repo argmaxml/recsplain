@@ -73,10 +73,10 @@ class PartitionSchema:
     def _unparse_encoders(self, encoders):
         return [dict({"field":k, "values": e.values, "type": type(e).__name__.replace("Encoder", "").lower(), "weight": e.column_weight, "default": e.default}, **e.special_properties()) for k, e in encoders.items()]
     def _unparse_filters(self, filters, partitions):
-        ret_filters = collections.defaultdict(set)
+        ret_filters = collections.defaultdict(list)
         for i, k in enumerate(filters):
             for v in map(at(i), partitions):
-                ret_filters[k].add(v)
+                ret_filters[k].append(v)
         ret_filters = [{"field":k, "values": list(v)} for k,v in ret_filters.items()]
         return ret_filters
 
@@ -397,7 +397,7 @@ class NumpyEncoder(BaseEncoder):
         try:
             idx = self.ids.index(value)
         except ValueError:
-            return np.zeros(len(self.ids))
+            return np.zeros(self.embedding.shape[1])
         return self.embedding[idx,:]
 
     def special_properties(self):
@@ -420,9 +420,6 @@ class JSONEncoder(CachingEncoder):
         else:
             raise TypeError(str(type(val))+ " is not supported")
         return vec
-
-    def special_properties(self):
-        return {"similarity_by_depth": self.similarity_by_depth}
 
 class QwakEncoder(BaseEncoder):
     def __init__(self, column, column_weight, environment, length, entity_name, api_key=None,**kwargs):
