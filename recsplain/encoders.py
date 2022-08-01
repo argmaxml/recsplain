@@ -52,7 +52,7 @@ class PartitionSchema:
                                                         similarity_by_depth=enc["similarity_by_depth"])
             elif enc["type"] in ["numpy", "np", "embedding"]:
                 encoder_dict[enc["field"]] = NumpyEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                            values=enc["values"], default=enc.get("default"), npy=enc["url"])
+                                                            values=enc["values"], default=enc.get("default"), npy=enc["npy"])
             elif enc["type"] in ["JSON", "json", "js"]:
                 encoder_dict[enc["field"]] = JSONEncoder(column=enc["field"], column_weight=enc["weight"],
                                                             values=enc["values"], default=enc.get("default"), length=enc["length"])
@@ -72,11 +72,12 @@ class PartitionSchema:
         return ret_filters, partitions
     def _unparse_encoders(self, encoders):
         return [dict({"field":k, "values": e.values, "type": type(e).__name__.replace("Encoder", "").lower(), "weight": e.column_weight, "default": e.default}, **e.special_properties()) for k, e in encoders.items()]
+
     def _unparse_filters(self, filters, partitions):
-        ret_filters = collections.defaultdict(set)
+        ret_filters = collections.defaultdict(list)
         for i, k in enumerate(filters):
             for v in map(at(i), partitions):
-                ret_filters[k].add(v)
+                ret_filters[k].append(v)
         ret_filters = [{"field":k, "values": list(v)} for k,v in ret_filters.items()]
         return ret_filters
 
@@ -166,7 +167,8 @@ class PartitionSchema:
         filters = self._unparse_filters(self.filters, self.partitions)
         encoders = self._unparse_encoders(self.encoders)
         user_encoders = self._unparse_encoders(self.user_encoders)
-        return {"encoders": encoders, "filters":filters, "metric": self.metric, "id_col": self.id_col, "user_encoders": user_encoders}
+        return {"encoders": encoders, "filters": filters, "index_factory": self.index_factory, "metric": self.metric,
+                "id_col": self.id_col, "user_encoders": user_encoders}
 
     def restore_vector_with_index(self, partition_num, index):
         mapping = self.item_mappings[partition_num][index]
@@ -398,6 +400,9 @@ class NumpyEncoder(BaseEncoder):
         except ValueError:
             return np.zeros(self.embedding.shape[1])
         return self.embedding[idx,:]
+
+    def special_properties(self):
+        return {"npy": self.npy}
 
 class JSONEncoder(CachingEncoder):
 

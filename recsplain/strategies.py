@@ -194,7 +194,7 @@ class BaseStrategy:
         with (model_dir/"schema.json").open('r') as f:
             schema_dict=json.load(f)
         self.schema = PartitionSchema(**schema_dict)
-        self.partitions = [self.IndexEngine(self.schema.metric, self.schema.dim, **self.engine_params) for _ in self.schema.partitions]
+        self.partitions = [self.IndexEngine(self.schema.metric, self.schema.dim, self.schema.index_factory, **self.engine_params) for _ in self.schema.partitions]
         model_dir.mkdir(parents=True, exist_ok=True)
         with (model_dir/"index_labels.json").open('r') as f:
             self.index_labels=json.load(f)
