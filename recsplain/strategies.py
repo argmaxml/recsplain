@@ -288,25 +288,27 @@ class AvgUserStrategy(BaseStrategy):
         # Assumes same features as the item
         return self.schema.partition_num(user_data)
 
-    def user_query(self, user_data, item_history, k, strategy_id=None, user_coldstart_item=None):
+    def user_query(self, user_data, item_history, k, strategy_id=None, user_coldstart_item=None, user_coldstart_weight=1):
         if not strategy_id:
             strategy_id = self.schema.base_strategy_id()
         if user_coldstart_item is None:
             n = 0
             vec = np.zeros(self.schema.dim)
         else:
-            n = 1
+            n = user_coldstart_weight
             vec = self.schema.encode(user_coldstart_item, strategy_id)
         user_partition_num = self.user_partition_num(user_data)
         col_mapping = self.schema.component_breakdown()
         labels, distances = [], []
         if type(item_history) == str:
-            item_history = [item_history]
-        for item in item_history:
+            item_history = {item_history:1}
+        elif type(item_history) == list:
+            item_history = {i:1 for i in item_history}
+        for item, w in item_history.items():
             # Calculate AVG
             item_vectors = [v for vs in self.fetch(item, numpy=True).values() for v in vs]
-            n += len(item_vectors)
-            vec += np.sum(item_vectors, axis=0)
+            n+=w*len(item_vectors)
+            vec += w*np.sum(item_vectors, axis=0)
         if n>0:
             vec /= n
         # Override column values post aggregation, if needed

@@ -61,7 +61,7 @@ class PartitionSchema:
                                                             similarity_by_depth=enc["similarity_by_depth"])
                 elif enc["type"] in ["numpy", "np", "embedding"]:
                     encoder_dict[enc["field"]] = NumpyEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                                values=enc["values"], default=enc.get("default"), npy=npy["url"])
+                                                                values=enc["values"], default=enc.get("default"), npy=enc["npy"])
                 elif enc["type"] in ["JSON", "json", "js"]:
                     encoder_dict[enc["field"]] = JSONEncoder(column=enc["field"], column_weight=enc["weight"],
                                                                 values=enc["values"], default=enc.get("default"), length=enc["length"])
@@ -88,11 +88,11 @@ class PartitionSchema:
                 for k, e in encoders.items()]
 
     def _unparse_filters(self, filters, partitions):
-        ret_filters = collections.defaultdict(set)
+        ret_filters = collections.defaultdict(list)
         for i, k in enumerate(filters):
             for v in map(at(i), partitions):
-                ret_filters[k].add(v)
-        ret_filters = [{"field": k, "values": list(v)} for k, v in ret_filters.items()]
+                ret_filters[k].append(v)
+        ret_filters = [{"field":k, "values": list(v)} for k,v in ret_filters.items()]
         return ret_filters
 
     def _create_feature_mapping(self, encoders):
@@ -142,7 +142,14 @@ class PartitionSchema:
             for feature, encoder in self.encoders[strategy_id].items():
                 feature_weight = weights_mapping.get(feature, 0)
                 if feature_weight != 0:
-                    if type(encoder) == NumericEncoder:
+                    if (type(encoder) == NumericEncoder) or (type(encoder) == NumpyEncoder):
+                        encoding.append(encoder.encode(x[feature]) * feature_weight)
+                    elif type(encoder) == BinOrdinalEncoder:
+                        ind = 0
+                        while ind < len(encoder.values) and x[feature] > encoder.values[ind]:
+                            ind += 1
+                        encoding.append(encoder.encode(encoder.values[ind]) * feature_weight)
+                    elif type(encoder) == OrdinalEncoder:
                         encoding.append(encoder.encode(x[feature]) * feature_weight)
                     else:
                         value_index = self.feature_mapping[feature][x[feature]]
@@ -201,7 +208,7 @@ class PartitionSchema:
                     self.encoders.items()}
         user_encoders = {strategy_id: self._unparse_encoders(user_encoders) for strategy_id, user_encoders in
                          self.user_encoders}
-        return {"encoders": encoders, "filters": filters, "metric": self.metric, "id_col": self.id_col,
+        return {"encoders": encoders, "filters": filters, "index_factory": self.index_factory, "metric": self.metric, "id_col": self.id_col,
                 "user_encoders": user_encoders, "strategies": self.strategies}
 
     def restore_vector_with_index(self, partition_num, index, strategy_id=None):
@@ -334,8 +341,8 @@ class OrdinalEncoder(OneHotEncoder):
         except ValueError:  # Unknown
             vec[0] = 1
             return vec
-        vec[1 + ind] = self.window[len(self.window) // 2 + 1]
-        for offset in range(len(self.window) // 2):
+        vec[ind + 1] = self.window[len(self.window) // 2]
+        for offset in range(1, len(self.window) // 2 + 1):
             if ind - offset >= 0:
                 vec[1 + ind - offset] = self.window[len(self.window) // 2 - offset]
             if ind + offset < len(self.values):
@@ -374,11 +381,11 @@ class BinOrdinalEncoder(BinEncoder):
         ind = 0
         while ind < len(self.values) and value > self.values[ind]:
             ind += 1
-        vec[ind] = self.window[len(self.window) // 2 + 1]
-        for offset in range(len(self.window) // 2):
+        vec[ind] = self.window[len(self.window) // 2]
+        for offset in range(1, len(self.window) // 2 + 1):
             if ind - offset >= 0:
                 vec[ind - offset] = self.window[len(self.window) // 2 - offset]
-            if ind + offset < len(self.values):
+            if ind + offset <= len(self.values):
                 vec[ind + offset] = self.window[len(self.window) // 2 + offset]
         return vec
     
@@ -444,8 +451,11 @@ class NumpyEncoder(BaseEncoder):
         try:
             idx = self.ids.index(value)
         except ValueError:
-            return np.zeros(len(self.ids))
-        return self.embedding[idx, :]
+            return np.zeros(self.embedding.shape[1])
+        return self.embedding[idx,:]
+
+    def special_properties(self):
+        return {"npy": self.npy}
 
 
 class JSONEncoder(CachingEncoder):
