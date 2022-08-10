@@ -1,0 +1,4 @@
+Collecting faiss-cpu
+  Using cached faiss_cpu-1.7.2-cp310-cp310-win_amd64.whl (9.9 MB)
+Installing collected packages: faiss-cpu
+Successfully installed faiss-cpu-1.7.2

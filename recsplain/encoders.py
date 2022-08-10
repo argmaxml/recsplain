@@ -53,6 +53,12 @@ class PartitionSchema:
             elif enc["type"] in ["numpy", "np", "embedding"]:
                 encoder_dict[enc["field"]] = NumpyEncoder(column=enc["field"], column_weight=enc["weight"],
                                                             values=enc["values"], default=enc.get("default"), npy=enc["npy"])
+
+            # elif enc["type"] in ["CLIP", "clip", "openai-clip"]:
+            #     encoder_dict[enc["field"]] = ClipEncoder(column=enc["field"], column_weight=enc["weight"],
+            #                                              values_img=enc["values_img"], values_img=enc["values_img"], default=enc.get("default"),
+            #                                              npy_img=enc["npy_img"], npy_txt=enc["npy_txt"])
+
             elif enc["type"] in ["JSON", "json", "js"]:
                 encoder_dict[enc["field"]] = JSONEncoder(column=enc["field"], column_weight=enc["weight"],
                                                             values=enc["values"], default=enc.get("default"), length=enc["length"])
@@ -110,7 +116,7 @@ class PartitionSchema:
             for feature, encoder in self.encoders.items():
                 feature_weight = weights_mapping.get(feature, 0)
                 if feature_weight != 0:
-                    if (type(encoder) == NumericEncoder) or (type(encoder) == NumpyEncoder):
+                    if (type(encoder) == NumericEncoder) or (type(encoder) == NumpyEncoder) or (type(encoder) == ClipEncoder):
                         encoding.append(encoder.encode(x[feature]) * feature_weight)
                     elif type(encoder) == BinOrdinalEncoder:
                         ind = 0
@@ -403,6 +409,35 @@ class NumpyEncoder(BaseEncoder):
 
     def special_properties(self):
         return {"npy": self.npy}
+
+# class ClipEncoder(BaseEncoder):
+#     def __init__(self, column, column_weight, values_img,values_txt, npy_img, npy_txt, **kwargs):
+#         super().__init__(column=column, column_weight=column_weight, values_img=values_img,values_txt=values_txt, npy_img=npy_img,npy_txt=npy_txt, **kwargs)
+#         with open(npy_img, 'rb') as f:
+#             self.img_embedding = np.load(f)
+#         with open(npy_txt, 'rb') as f:
+#             self.txt_embedding = np.load(f)
+#
+#         if type(values) == list:
+#             self.ids = values
+#         else:
+#             with open(values, 'r') as f:
+#                 self.ids = [l.strip() for l in f.readlines() if l.strip() != ""]
+#         assert self.embedding.shape[0] == len(self.ids), "Dimension mismatch between ids and embedding"
+#         self.nonzero_elements = 1
+#
+#     def __len__(self):
+#         return self.embedding.shape[1]
+#
+#     def encode(self, value):
+#         try:
+#             idx = self.ids.index(value)
+#         except ValueError:
+#             return np.zeros(self.embedding.shape[1])
+#         return self.embedding[idx, :]
+#
+#     def special_properties(self):
+#         return {"npy": self.npy}
 
 class JSONEncoder(CachingEncoder):
 

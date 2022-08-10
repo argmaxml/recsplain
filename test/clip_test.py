@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 from recsplain import AvgUserStrategy
 
-class NumpyTest(unittest.TestCase):
+class ClipTest(unittest.TestCase):
 
     def setUp(self):
         self.strategy = AvgUserStrategy()
