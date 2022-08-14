@@ -8,8 +8,9 @@ class BinOrdinalTest(unittest.TestCase):
 
     def setUp(self):
         self.schema = {
+            "strategies": [{"id": "1", "name": "base", "is_base": True}],
             "filters": [{"field":'language_code', "values": ["en", "de", "fr"]}],
-            "encoders":
+            "encoders": {"1":
             [
             {
             "field": "average_rating",
@@ -18,13 +19,13 @@ class BinOrdinalTest(unittest.TestCase):
             "window": [0.1,1,0.2],
             "weight": np.sqrt(3)
             },
-        ],
+        ]},
             "metric": "l2"
             
         }
 
     def test_no_window(self):
-        self.schema["encoders"][0]["window"] = [1]
+        self.schema["encoders"]["1"][0]["window"] = [1]
         strategy = AvgUserStrategy()
         strategy.init_schema(**self.schema)
         data = {"id":1, "language_code":"en", "average_rating": 3.72}
@@ -32,7 +33,7 @@ class BinOrdinalTest(unittest.TestCase):
         self.assertTrue(np.allclose(vec,  [0,np.sqrt(3),0]))
 
     def test_window(self):
-        self.schema["encoders"][0]["window"] = [0.1,1,0.2]
+        self.schema["encoders"]["1"][0]["window"] = [0.1,1,0.2]
         strategy = AvgUserStrategy()
         strategy.init_schema(**self.schema)
         data = {"id":1, "language_code":"en", "average_rating": 3.72}
