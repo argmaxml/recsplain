@@ -89,7 +89,10 @@ class BaseStrategy:
             if not parallel:
                 encoded[partition] = self.encode(data, strategy_id)
             num_ids[partition] =(num_id_start, num_id_start+len(data))
-            self.index_labels.extend([datum[self.schema.id_col] for datum in data])
+            num_id_range=list(range(num_id_start, num_id_start+len(data)))
+            ids=[datum[self.schema.id_col] for datum in data]
+            self.index_labels.extend(ids)
+            self.schema.add_mapping(partition_nums[partition], num_id_range, data)
             num_id_start+=len(data)
 
         if parallel:
