@@ -69,9 +69,8 @@ class BaseStrategy:
                         self.index_labels.append(id)
             affected_partitions += 1
             num_ids = list(map(self.index_labels.index, ids))
-            self.partitions[strategy_id][partition_num].add_items(items, num_ids)
-            if strategy_id == self.schema.base_strategy_id():
-                self.schema.add_mapping(partition_num, num_ids, [d for d in data if d['id'] in ids])
+            self.partitions[partition_num].add_items(items, num_ids)
+            self.schema.add_mapping(partition_num, num_ids, [d for d in data if d[self.schema.id_col] in ids])
         return errors, affected_partitions
 
     def index_dataframe(self, df, parallel=True, strategy_id=None):
@@ -102,17 +101,17 @@ class BaseStrategy:
             encoded = dict(Parallel(n_jobs=-1)(tup_encode(partition, data, strategy_id) for partition, data in partitioned.items()))
 
             @delayed
-            def add_items_to_partition(data, partition_num, strategy_id, from_, to_):
+            def add_items_to_partition(vecs, partition_num, from_, to_):
                 ids = np.arange(from_, to_)
-                self.partitions[strategy_id][partition_num].add_items(data, ids)
+                self.partitions[partition_num].add_items(vecs, ids)
             
             Parallel(n_jobs=-1, require='sharedmem')([add_items_to_partition(data, partition_nums[partition], strategy_id, num_ids[partition][0], num_ids[partition][1]) for partition, data in encoded.items()])
         else:
-            for partition, data in encoded.items():
+            for partition, vecs in encoded.items():
                 partition_num = partition_nums[partition]
                 from_, to_ = num_ids[partition]
                 ids = list(range(from_, to_))
-                self.partitions[strategy_id][partition_num].add_items(data, ids)
+                self.partitions[partition_num].add_items(vecs, ids)
         return affected_partitions
 
     def query_by_partition_and_vector(self, partition_num, strategy_id, vec, k, explain=False):
