@@ -12,7 +12,6 @@ setup(
     packages=[__package__],
     install_requires=[
         "faiss-cpu>=1.7.1.post3",
-        "hnswlib>=0.5.1",
         "numpy>=1.21.2",
         "fastapi>=0.68.0",
         "uvicorn>=0.15.0",
