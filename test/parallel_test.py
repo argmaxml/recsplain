@@ -10,14 +10,13 @@ class IndexParallel(unittest.TestCase):
 
 
         self.strategy.init_schema(
-        strategies=[{"id": "1", "name": "base", "is_base": True}],
         filters=[
             {"field": "country", "values": ["US", "EU"]}
         ],
-        encoders= {"1": [
+        encoders= [
             {"field": "price", "values":["low", "mid", "high"], "type": "onehot", "weight":1},
             {"field": "category", "values":["dairy","meat"], "type": "onehot", "weight":2}
-        ]},
+        ],
         metric= "l2"
         )
         self.strategy.index([

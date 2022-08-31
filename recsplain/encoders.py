@@ -13,7 +13,7 @@ class PartitionSchema:
                  "feature_embeddings", "feature_mapping", "item_mappings", "index_factory",
                  "strategies"]
 
-    def __init__(self, encoders, strategies=[], filters=[], metric='ip', id_col="id",
+    def __init__(self, encoders, strategies=[{"id": "0", "name": "default", "is_base": True}], filters=[], metric='ip', id_col="id",
                  user_encoders={}, index_factory="Flat"):
 
         self.strategies = strategies
@@ -34,6 +34,8 @@ class PartitionSchema:
 
     def _parse_encoders(self, encoders):
         strategy_encoders_dict = dict()
+        if type(encoders) == list:
+            encoders = {self.base_strategy_id(): encoders}
         for strategy, strategy_encoders in encoders.items():
             encoder_dict = dict()
             for enc in strategy_encoders:
@@ -207,7 +209,7 @@ class PartitionSchema:
         encoders = {strategy_id: self._unparse_encoders(strategy_encoders) for strategy_id, strategy_encoders in
                     self.encoders.items()}
         user_encoders = {strategy_id: self._unparse_encoders(user_encoders) for strategy_id, user_encoders in
-                         self.user_encoders}
+                         self.user_encoders.items()}
         return {"encoders": encoders, "filters": filters, "index_factory": self.index_factory, "metric": self.metric, "id_col": self.id_col,
                 "user_encoders": user_encoders, "strategies": self.strategies}
 
