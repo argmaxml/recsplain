@@ -133,7 +133,7 @@ class BaseStrategy:
         vec = vec.reshape(-1)
         explanation = []
         # X = self.partitions[partition_num].get_items(num_ids[0])
-        X = np.array([self.schema.restore_vector_with_index(partition_num, index, strategy_id) for index in num_ids[0]], dtype='float32')
+        X = np.array([self.schema.restore_vector_with_index(partition_num, index, strategy_id) for index in num_ids], dtype='float32')
         first_sim = None
         for ret_vec in X:
             start = 0
@@ -143,8 +143,8 @@ class BaseStrategy:
                     explanation[-1][col] = 0  # float(enc.column_weight)
                     continue
                 end = start + len(enc)
-                ret_part = ret_vec[start:end]
-                query_part =   vec[start:end]
+                ret_part = ret_vec[0][start:end]
+                query_part = vec[start:end]
                 if self.schema.metric == 'l2':
                     # The returned distance from the similarity server is not squared
                     dst = ((ret_part-query_part)**2).sum()
@@ -181,9 +181,10 @@ class BaseStrategy:
             l, d, e = self.query_by_partition_and_vector(partition_num, strategy_id, vec, k, explain)
             labels.extend(l)
             distances.extend(d)
+            explanation.extend(e)
             #TODO: explanation is not supported when having multiple filters
         labels, distances = zip(*sorted(zip(labels, distances), key=at(1)))
-        return labels, distances ,explanation
+        return labels, distances, explanation
 
 
 

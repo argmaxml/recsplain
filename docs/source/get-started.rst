@@ -62,7 +62,8 @@ Here is an example of how to call the ``init_schema`` method.
 
 ``Weights`` are used to set the relative importance the system should attribute to this feature in the similarity check.
 
-This is the response from ``init_schema``.
+This is the response from ``init_schema``. The first element is an array of the filters created and the second element
+is a dictionary of the features and their corresponding vector size.
 
 .. literalinclude:: init_schema_response.py
   :language: python
@@ -86,7 +87,8 @@ Here is an example of how to call the ``index`` method.
 .. literalinclude:: data_index_example.py
   :language: python
 
-This is the response from ``index``.
+This is the response from ``index``. The first element is a list of errors and the second elemnt is the number of
+partitions affected by the indexing.
 
 .. literalinclude:: data_index_response.py
   :language: python
@@ -118,7 +120,9 @@ Here is an example of how to call the ``query`` method.
 .. literalinclude:: item_query_example.py
   :language: python
 
-This is the response from ``query``.
+This is the response from ``query``. The first element is the ids of the recommended items, the second element is the
+distances of each of the recommended items and the third element is the explanation of how much each feature contributed
+to the overall distance.
 
 .. literalinclude:: item_query_response.py
   :language: python
@@ -141,7 +145,8 @@ Here is an example of how to call the ``user_query`` method.
 .. literalinclude:: user_query_example.py
   :language: python
 
-This is the response from ``user_query``.
+This is the response from ``user_query``. The first element is the ids of the recommended items and the second element
+is the distance of each of these items from the user's representation (as given by the items history).
 
 .. literalinclude:: user_query_response.py
   :language: python
