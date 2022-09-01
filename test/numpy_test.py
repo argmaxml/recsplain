@@ -11,8 +11,7 @@ class NumpyTest(unittest.TestCase):
         self.npy =str(Path(__file__).absolute().parent/"test_np_encoder.npy")
         np.save(self.npy, np.eye(5))
         self.strategy.init_schema(
-            strategies = [{"id": "1", "name": "base", "is_base": True}],
-            encoders= {"1": [{"field": "state",  "values": ["a", "b", "c", "d", "e"], "type":"np", "weight":1, "npy":self.npy}]},
+            encoders= [{"field": "state",  "values": ["a", "b", "c", "d", "e"], "type":"np", "weight":1, "npy":self.npy}],
             filters= [{"field": "country", "values": ["US", "EU"]}],
             metric= "cosine",
             index_factory='Flat'
