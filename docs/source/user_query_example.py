@@ -3,10 +3,9 @@ import recsplain as rx
 user_query_data = {
   "k": 2,
   "item_history": ["1", "3", "3"],
-  "data": {
+  "user_data": {
     "country": "US"
-  },
-  "explain": 1
+  }
 }
 
-rx.user_query(user_query_data)
+rec_strategy.user_query(**user_query_data)

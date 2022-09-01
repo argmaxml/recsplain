@@ -10,4 +10,4 @@ item_query_data = {
   "explain": 1
 }
 
-rx.query(item_query_data)
+rec_strategy.query(**item_query_data)
