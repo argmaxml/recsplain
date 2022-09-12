@@ -6,7 +6,7 @@ from .tree_helpers import lowest_depth, get_values_nested
 import requests
 from smart_open import open
 from collections import defaultdict
-
+# small comment
 
 class PartitionSchema:
     __slots__ = ["encoders", "filters", "partitions", "dim", "metric", "defaults", "id_col", "user_encoders",
