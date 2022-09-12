@@ -36,44 +36,45 @@ class PartitionSchema:
         strategy_encoders_dict = dict()
         if type(encoders) == list:
             encoders = {self.base_strategy_id(): encoders}
-        for strategy, strategy_encoders in encoders.items():
+        # for strategy_encoders in encoders['0']:
+        for enc in encoders['0']:
             encoder_dict = dict()
-            for enc in strategy_encoders:
-                if enc["type"] in ["onehot", "one_hot", "one hot", "oh"]:
-                    encoder_dict[enc["field"]] = OneHotEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                        values=enc["values"], default=enc.get("default"))
-                elif enc["type"] in ["strictonehot", "strict_one_hot", "strict one hot", "soh"]:
-                    encoder_dict[enc["field"]] = StrictOneHotEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                                values=enc["values"], default=enc.get("default"))
-                elif enc["type"] in ["num", "numeric"]:
-                    encoder_dict[enc["field"]] = NumericEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                        values=enc["values"], default=enc.get("default"))
-                elif enc["type"] in ["ordinal", "ordered"]:
-                    encoder_dict[enc["field"]] = OrdinalEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                        values=enc["values"], default=enc.get("default"), window=enc["window"])
-                elif enc["type"] in ["bin", "binning"]:
-                    encoder_dict[enc["field"]] = BinEncoder(column=enc["field"], column_weight=enc["weight"],
-                        values=enc["values"], default=enc.get("default"))
-                elif enc["type"] in ["binordinal", "bin_ordinal", "bin ordinal", "ord bin"]:
-                    encoder_dict[enc["field"]] = BinOrdinalEncoder(column=enc["field"], column_weight=enc["weight"],
-                        values=enc["values"], default=enc.get("default"), window=enc["window"])
-                elif enc["type"] in ["hier", "hierarchy", "nested"]:
-                    encoder_dict[enc["field"]] = HierarchyEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                            values=enc["values"], default=enc.get("default"),
-                                                            similarity_by_depth=enc["similarity_by_depth"])
-                elif enc["type"] in ["numpy", "np", "embedding"]:
-                    encoder_dict[enc["field"]] = NumpyEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                                values=enc["values"], default=enc.get("default"), npy=enc["npy"])
-                elif enc["type"] in ["JSON", "json", "js"]:
-                    encoder_dict[enc["field"]] = JSONEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                                values=enc["values"], default=enc.get("default"), length=enc["length"])
-                elif enc["type"] in ["qwak"]:
-                    encoder_dict[enc["field"]] = QwakEncoder(column=enc["field"], column_weight=enc["weight"],
-                                                                length=enc["length"], entity_name=enc["entity"], default=enc.get("default"),
-                                                                feature_name=enc["feature"], environment=enc["environment"])
-                else:
-                    raise TypeError("Unknown type {t} in field {f}".format(f=enc["field"], t=enc["type"]))
-            strategy_encoders_dict[strategy] = encoder_dict
+            # for enc in strategy_encoders:
+            if enc["type"] in ["onehot", "one_hot", "one hot", "oh"]:
+                encoder_dict[enc["field"]] = OneHotEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                    values=enc["values"], default=enc.get("default"))
+            elif enc["type"] in ["strictonehot", "strict_one_hot", "strict one hot", "soh"]:
+                encoder_dict[enc["field"]] = StrictOneHotEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                            values=enc["values"], default=enc.get("default"))
+            elif enc["type"] in ["num", "numeric"]:
+                encoder_dict[enc["field"]] = NumericEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                    values=enc["values"], default=enc.get("default"))
+            elif enc["type"] in ["ordinal", "ordered"]:
+                encoder_dict[enc["field"]] = OrdinalEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                    values=enc["values"], default=enc.get("default"), window=enc["window"])
+            elif enc["type"] in ["bin", "binning"]:
+                encoder_dict[enc["field"]] = BinEncoder(column=enc["field"], column_weight=enc["weight"],
+                    values=enc["values"], default=enc.get("default"))
+            elif enc["type"] in ["binordinal", "bin_ordinal", "bin ordinal", "ord bin"]:
+                encoder_dict[enc["field"]] = BinOrdinalEncoder(column=enc["field"], column_weight=enc["weight"],
+                    values=enc["values"], default=enc.get("default"), window=enc["window"])
+            elif enc["type"] in ["hier", "hierarchy", "nested"]:
+                encoder_dict[enc["field"]] = HierarchyEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                        values=enc["values"], default=enc.get("default"),
+                                                        similarity_by_depth=enc["similarity_by_depth"])
+            elif enc["type"] in ["numpy", "np", "embedding"]:
+                encoder_dict[enc["field"]] = NumpyEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                            values=enc["values"], default=enc.get("default"), npy=enc["npy"])
+            elif enc["type"] in ["JSON", "json", "js"]:
+                encoder_dict[enc["field"]] = JSONEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                            values=enc["values"], default=enc.get("default"), length=enc["length"])
+            elif enc["type"] in ["qwak"]:
+                encoder_dict[enc["field"]] = QwakEncoder(column=enc["field"], column_weight=enc["weight"],
+                                                            length=enc["length"], entity_name=enc["entity"], default=enc.get("default"),
+                                                            feature_name=enc["feature"], environment=enc["environment"])
+            else:
+                raise TypeError("Unknown type {t} in field {f}".format(f=enc["field"], t=enc["type"]))
+            strategy_encoders_dict['0'] = encoder_dict
         return strategy_encoders_dict
 
     def _parse_filters(self, filters):
@@ -522,4 +523,3 @@ class QwakEncoder(BaseEncoder):
     def encode(self, value):
         val = self.get_feature(value)
         return self.json_encode(val)
-
