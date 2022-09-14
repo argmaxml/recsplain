@@ -16,6 +16,16 @@ try:
 except ModuleNotFoundError:
     print ("faiss not found")
     faiss = None
+try:
+    from redis import Redis
+    from redis.commands.search.field import VectorField
+    from redis.commands.search.field import TextField
+    from redis.commands.search.field import TagField
+    from redis.commands.search.query import Query
+    from redis.commands.search.result import Result
+    available_engines.add("redis")
+except ModuleNotFoundError:
+    print ("redis not found")
 
 def parse_server_name(sname):
     if sname in ["hnswlib", "hnsw"]:
@@ -25,6 +35,10 @@ def parse_server_name(sname):
     elif sname in ["faiss", "flatfaiss"]:
         if "faiss" in available_engines:
             return FaissIndexFactory
+        return SciKitNearestNeighbors
+    elif sname in ["redis"]:
+        if "redis" in available_engines:
+            return RedisIndex
         return SciKitNearestNeighbors
     else:
         return SciKitNearestNeighbors
@@ -179,3 +193,46 @@ class SciKitNearestNeighbors:
 
     def get_current_count(self):
         return len(self.items)
+
+
+class RedisIndex:
+    def __init__(self, space, dim, index_factory=None,redis_credentials=None,max_elements=1024, ef_construction=200, M=16):
+        super().__init__(space, dim)
+        self.max_elements = max_elements
+        self.ef_construction = ef_construction
+        self.M = M
+        if redis_credentials is None:
+            raise Exception("Redis credentials must be provided")
+        self.redis = Redis(**redis_credentials)
+        self.pipe = None
+    
+    def __enter__(self):
+        self.pipe = self.redis.pipeline()
+        return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.pipe.execute()
+        self.pipe = None
+
+    def __len__(self):
+        return self.get_current_count()
+
+    def  __itemgetter__(self, item):
+        return super().get_items([item])[0]
+
+    def search(self, data, k=1):
+        raise NotImplementedError("RedisIndex is not implemented yet")
+
+    def add_items(self, data, ids=None, num_threads=-1):
+        raise NotImplementedError("RedisIndex is not implemented yet")
+
+    def get_items(self, ids=None):
+        raise NotImplementedError("RedisIndex is not implemented yet")
+
+    def init(self, **kwargs):
+        raise NotImplementedError("RedisIndex is not implemented yet")
+
+    def get_current_count(self):
+        raise NotImplementedError("RedisIndex is not implemented yet")
+
+    def get_max_elements(self):
+        return self.max_elements
