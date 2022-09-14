@@ -3,6 +3,12 @@ from operator import itemgetter as at
 import numpy as np
 from pathlib import Path
 
+# Optional dependencies
+try:
+    from redis import Redis
+except ModuleNotFoundError:
+    Redis = None
+
 # src = Path(__file__).absolute().parent
 # sys.path.append(str(src))
 from .encoders import PartitionSchema
@@ -327,3 +333,10 @@ class AvgUserStrategy(BaseStrategy):
         distances.extend(item_distances)
         return labels, distances
 
+
+class RedisStrategy(BaseStrategy):
+    def __init__(self, model_dir=None, similarity_engine=None, engine_params={}):
+        super().__init__(model_dir, similarity_engine, engine_params)
+        assert Redis is not None, "RedisStrategy requires redis-py to be installed"
+
+        
