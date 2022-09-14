@@ -197,7 +197,8 @@ class SciKitNearestNeighbors:
 
 class RedisIndex:
     def __init__(self, space, dim, index_factory=None,redis_credentials=None,max_elements=1024, ef_construction=200, M=16):
-        super().__init__(space, dim)
+        self.space = space
+        self.dim = dim
         self.max_elements = max_elements
         self.ef_construction = ef_construction
         self.M = M
@@ -205,6 +206,7 @@ class RedisIndex:
             raise Exception("Redis credentials must be provided")
         self.redis = Redis(**redis_credentials)
         self.pipe = None
+        self.init_hnsw()
     
     def __enter__(self):
         self.pipe = self.redis.pipeline()
@@ -228,8 +230,13 @@ class RedisIndex:
     def get_items(self, ids=None):
         raise NotImplementedError("RedisIndex is not implemented yet")
 
-    def init(self, **kwargs):
+    def init_hnsw(self, **kwargs):
         raise NotImplementedError("RedisIndex is not implemented yet")
+        self.redis.ft().create_index([
+        VectorField("embedding", "HNSW", {"TYPE": "FLOAT32", "DIM": self.dim, "DISTANCE_METRIC": self.space, "INITIAL_CAP": self.max_elements, "M": self.M, "EF_CONSTRUCTION": self.ef_construction}),
+        TextField("id"),
+        TagField("country")     
+        ])  
 
     def get_current_count(self):
         raise NotImplementedError("RedisIndex is not implemented yet")
