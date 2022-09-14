@@ -1,29 +1,36 @@
+import sys
 import numpy as np
 import collections
 from sklearn.neighbors import NearestNeighbors
+available_engines = {"sklearn"}
 try:
     import hnswlib
+    available_engines.add("hnswlib")
 except ModuleNotFoundError:
     print ("hnswlib not found")
     HNSWMock = collections.namedtuple("HNSWMock", ("Index", "max_elements"))
     hnswlib = HNSWMock(None,0)
 try:
     import faiss
+    available_engines.add("faiss")
 except ModuleNotFoundError:
     print ("faiss not found")
     faiss = None
 
 def parse_server_name(sname):
     if sname in ["hnswlib", "hnsw"]:
-        return LazyHnsw
+        if "hnswlib" in available_engines:
+            return LazyHnsw
+        return SciKitNearestNeighbors
     elif sname in ["faiss", "flatfaiss"]:
-        return FlatFaiss
+        if "faiss" in available_engines:
+            return FaissIndexFactory
+        return SciKitNearestNeighbors
     else:
-        return SKKNN
-    raise TypeError(str(sname) + " is not a valid similarity server name")
+        return SciKitNearestNeighbors
 
 
-class FlatFaiss:
+class FaissIndexFactory:
     def __init__(self, space, dim, index_factory, **kwargs):
         if index_factory == '':
             index_factory = 'Flat'
@@ -31,7 +38,7 @@ class FlatFaiss:
             self.index = faiss.index_factory(dim, index_factory, faiss.METRIC_INNER_PRODUCT)
             if space == 'cosine':
                 # TODO: Support cosine
-                print("cosine is not supported yet, falling back to dot")
+                sys.stderr.write("cosine is not supported yet, falling back to dot\n")
         elif space == 'l2':
             self.index = faiss.index_factory(dim, index_factory, faiss.METRIC_L2)
         else:
@@ -129,9 +136,13 @@ class LazyHnsw(hnswlib.Index):
         return self.element_count
 
 
-class SKKNN:
+class SciKitNearestNeighbors:
     def __init__(self, space, dim, index_factory=None, **kwargs):
-        self.space = space
+        if space=="ip":
+            self.space = "cosine"
+            sys.stderr.write("Warning: ip is not supported by sklearn, falling back to cosine")
+        else:
+            self.space = space
         self.dim = dim
         self.items = []
         self.ids = []
