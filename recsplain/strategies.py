@@ -336,17 +336,19 @@ class AvgUserStrategy(BaseStrategy):
 
 
 class RedisStrategy(BaseStrategy):
-    def __init__(self, model_dir=None, similarity_engine=None, engine_params={}, redis_credentials=None, user_prefix="user:", value_sep="|", user_keys=[],event_key="event",event_weights={}):
+    def __init__(self, model_dir=None, similarity_engine=None, engine_params={}, redis_credentials=None, user_prefix="user:", value_sep="|", user_keys=[],event_key="event",item_key="item",event_weights={}):
         super().__init__(model_dir, similarity_engine, engine_params)
         assert Redis is not None, "RedisStrategy requires redis-py to be installed"
         assert redis_credentials is not None, "RedisStrategy requires redis credentials"
         assert len(user_keys)>0, "user_keys not supplied"
         assert event_key in user_keys, "event_key not in user_keys"
+        assert item_key in user_keys, "item_key not in user_keys"
         self.redis = Redis(**redis_credentials)
         self.sep = value_sep
         self. user_prefix = user_prefix
         self.event_key=event_key
         self.user_keys=user_keys
+        self.item_key=item_key
         self.event_weights=event_weights
         self.pipe = None
     def __enter__(self):
@@ -392,10 +394,14 @@ class RedisStrategy(BaseStrategy):
         col_mapping = self.schema.component_breakdown()
         labels, distances = [], []
         if user_id is None:
-            user_id = user_data.get(self.schema.id_col)
+            user_id = user_data.get("id")
+        if user_id is None:
+            raise ValueError("user_id not supplied")
         item_history = self.get_events(user_id)
         for item in item_history:
-            item_id = item.get(self.schema.id_col)
+            item_id = item.get(self.item_key)
+            if item_id is None:
+                continue
             w = self.event_weights.get(item.get(self.event_key),1)
             # Calculate AVG
             item_vectors = [v for vs in self.fetch(item_id, numpy=True).values() for v in vs]
