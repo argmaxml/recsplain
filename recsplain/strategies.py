@@ -346,6 +346,7 @@ class RedisStrategy(BaseStrategy):
         self.sep = value_sep
         self. user_prefix = user_prefix
         self.event_key=event_key
+        self.user_keys=user_keys
         self.event_weights=event_weights
         self.pipe = None
     def __enter__(self):
@@ -361,7 +362,7 @@ class RedisStrategy(BaseStrategy):
         vals = []
         for key in self.user_keys:
             vals.append(data.get(key,""))
-        val = self.sep.join(vals)
+        val = self.sep.join(map(str, vals))
         if self.pipe:
             self.pipe.rpush(self.user_prefix+str(user_id), val)
         else:
