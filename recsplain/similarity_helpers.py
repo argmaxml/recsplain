@@ -221,21 +221,43 @@ class RedisIndex:
     def  __itemgetter__(self, item):
         return super().get_items([item])[0]
 
-    def search(self, data, k=1):
-        raise NotImplementedError("RedisIndex is not implemented yet")
+    def search(self, data, k=1,partition=None):
+        query_vector = np.array(data).astype(np.float32).tobytes()
 
-    def add_items(self, data, ids=None, num_threads=-1):
-        raise NotImplementedError("RedisIndex is not implemented yet")
+        #prepare the query
+        p = "(@partition:{"+partition+"})" if partition is not None else "*"
+        q = Query(f'{p}=>[KNN {k} embedding $vec_param AS vector_score]').sort_by('vector_score').paging(0,k).return_fields('vector_score','item_id').dialect(2)
+        params_dict = {"vec_param": query_vector}
+        results = self.redis.ft().search(q, query_params = params_dict)
+        scores, ids = [], []
+        for item in results.docs:
+            scores.append(item.vector_score)
+            ids.append(item.item_id)
+        return (scores, ids)
+
+    def add_items(self, data, ids=None, partition=None):
+        self.pipe = self.redis.pipeline(transaction=False)
+        if partition is None:
+            partition=""
+        for datum, id in zip(data, ids):
+            key='item:'+ str(id)
+            emb = np.array(datum).astype(np.float32).tobytes()
+            self.pipe.hset(key,mapping={"embedding": emb, "item_id": str(id), "partition":partition})
+                
+        self.pipe.execute()
+        self.pipe = None
 
     def get_items(self, ids=None):
-        raise NotImplementedError("RedisIndex is not implemented yet")
+        ret = []
+        for id in ids:
+            ret.append(self.redis.hget("item:"+str(id), "embedding"))
+        return ret
 
     def init_hnsw(self, **kwargs):
-        raise NotImplementedError("RedisIndex is not implemented yet")
         self.redis.ft().create_index([
         VectorField("embedding", "HNSW", {"TYPE": "FLOAT32", "DIM": self.dim, "DISTANCE_METRIC": self.space, "INITIAL_CAP": self.max_elements, "M": self.M, "EF_CONSTRUCTION": self.ef_construction}),
-        TextField("id"),
-        TagField("country")     
+        TextField("item_id"),
+        TagField("partition")
         ])  
 
     def get_current_count(self):
