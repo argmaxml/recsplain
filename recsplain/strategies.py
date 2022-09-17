@@ -307,7 +307,11 @@ class AvgUserStrategy(BaseStrategy):
             vec = np.zeros(self.schema.dim)
         else:
             n = user_coldstart_weight
-            vec = self.schema.encode(user_coldstart_item, strategy_id)
+            if hasattr(user_coldstart_item, "__call__"):
+                item = user_coldstart_item(user_data)
+            elif type(user_coldstart_item) == dict:
+                item = user_coldstart_item
+            vec = self.schema.encode(item, strategy_id)
         user_partition_num = self.user_partition_num(user_data)
         col_mapping = self.schema.component_breakdown()
         labels, distances = [], []
@@ -389,7 +393,11 @@ class RedisStrategy(BaseStrategy):
             vec = np.zeros(self.schema.dim)
         else:
             n = user_coldstart_weight
-            vec = self.schema.encode(user_coldstart_item, strategy_id)
+            if hasattr(user_coldstart_item, "__call__"):
+                item = user_coldstart_item(user_data)
+            elif type(user_coldstart_item) == dict:
+                item = user_coldstart_item
+            vec = self.schema.encode(item, strategy_id)
         user_partition_num = self.user_partition_num(user_data)
         col_mapping = self.schema.component_breakdown()
         labels, distances = [], []
