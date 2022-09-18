@@ -1,5 +1,6 @@
 import sys, unittest, json
 import pandas as pd
+import numpy as np
 from pathlib import Path
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 from recsplain import RedisStrategy
@@ -54,26 +55,38 @@ class RedisTest(unittest.TestCase):
             'article_title': 'NaN',
             'views_count': 673}])
         self.strategy.index_dataframe(df, parallel=False)
-        
-        
+    
+    def test_read_write_to_redis(self):        
         lead_event = {'action_timestamp': '2000-01-01 0:00:00.00000',
                     'action': 'Item View',
                     'content_item_id': '345633',
-                    'organization_id': '4029'}
-        already_exists = self.strategy.get_events(123)
-        if already_exists:
-            self.strategy.pop_event(123)
-        self.strategy.add_event(123,lead_event)
+                    'organization_id': 4029}
+        with self.strategy :
+            already_exists = self.strategy.get_events(123)
+            if already_exists:
+                self.strategy.pop_event(123)
+            self.strategy.add_event(123,lead_event)
+            ret = self.strategy.get_events(123)
+            self.assertEqual(ret, lead_event)
 
     def test_fetch(self):
-        lead_data = {'action_timestamp': '2020-05-08 13:29:01.032636',
+        lead_data = {'action_timestamp': '2000-01-01 0:00:00.00000',
                 'action': 'Item View',
                 'content_item_id': '345633',
-                'organization_id': '4029'}
-        self.assertTrue(any(self.strategy.fetch("345633")))
+                'organization_id': 4029}
+        fetched = self.strategy.fetch("345633")
+        self.assertEqual(len(fetched[4029][0]),17774)
+    
+    def test_user_query(self):
+        lead_data = {'action_timestamp': '2000-01-01 0:00:00.00000',
+                'action': 'Item View',
+                'content_item_id': '345633',
+                'organization_id': 4029}
         ids,dists = self.strategy.user_query(user_id=123, user_data = lead_data, k=5)
+        dists = [round(i,2) for i in dists]
+        self.assertListEqual(list(ids), ['417215', '345633', '383246'])
+        self.assertListEqual(list(dists), [169.25, 181.89, 899.09])
         
-
 
 
 
