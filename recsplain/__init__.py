@@ -1,4 +1,4 @@
-__version__="0.0.74"
-from .strategies import BaseStrategy, AvgUserStrategy
+__version__="0.0.81"
+from .strategies import BaseStrategy, AvgUserStrategy, RedisStrategy
 from .encoders import PartitionSchema
 from .endpoint import run_server

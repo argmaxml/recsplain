@@ -2,18 +2,25 @@ import json, itertools, collections, sys, os
 from operator import itemgetter as at
 import numpy as np
 from pathlib import Path
+from typing import List, Dict, Tuple, Union, Optional, Any, Callable
+
+# Optional dependencies
+try:
+    from redis import Redis
+except ModuleNotFoundError:
+    Redis = None
 
 # src = Path(__file__).absolute().parent
 # sys.path.append(str(src))
 from .encoders import PartitionSchema
 from joblib import delayed, Parallel
-from .similarity_helpers import parse_server_name, FlatFaiss
+from .similarity_helpers import parse_server_name, FaissIndexFactory
 
 class BaseStrategy:
     __slots__ = ["schema", "partitions","index_labels", "model_dir", "IndexEngine", "engine_params"]
     def __init__(self, model_dir=None, similarity_engine=None ,engine_params={}):
         if similarity_engine is None:
-            self.IndexEngine = FlatFaiss
+            self.IndexEngine = FaissIndexFactory
             self.engine_params = {}
         else:
             self.IndexEngine = parse_server_name(similarity_engine)
@@ -308,7 +315,11 @@ class AvgUserStrategy(BaseStrategy):
             vec = np.zeros(self.schema.dim)
         else:
             n = user_coldstart_weight
-            vec = self.schema.encode(user_coldstart_item, strategy_id)
+            if hasattr(user_coldstart_item, "__call__"):
+                item = user_coldstart_item(user_data)
+            elif type(user_coldstart_item) == dict:
+                item = user_coldstart_item
+            vec = self.schema.encode(item, strategy_id)
         user_partition_num = self.user_partition_num(user_data)
         col_mapping = self.schema.component_breakdown()
         labels, distances = [], []
@@ -335,3 +346,97 @@ class AvgUserStrategy(BaseStrategy):
         distances.extend(item_distances)
         return labels, distances
 
+
+class RedisStrategy(BaseStrategy):
+    def __init__(self, model_dir=None, similarity_engine=None, engine_params={}, redis_credentials=None, user_prefix="user:", value_sep="|", user_keys=[],event_key="event",item_key="item",event_weights={}):
+        super().__init__(model_dir, similarity_engine, engine_params)
+        assert Redis is not None, "RedisStrategy requires redis-py to be installed"
+        assert redis_credentials is not None, "RedisStrategy requires redis credentials"
+        assert len(user_keys)>0, "user_keys not supplied"
+        assert event_key in user_keys, "event_key not in user_keys"
+        assert item_key in user_keys, "item_key not in user_keys"
+        self.redis = Redis(**redis_credentials)
+        self.sep = value_sep
+        self. user_prefix = user_prefix
+        self.event_key=event_key
+        self.user_keys=user_keys
+        self.item_key=item_key
+        self.event_weights=event_weights
+        self.pipe = None
+    def __enter__(self):
+        self.pipe = self.redis.pipeline()
+        return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.pipe.execute()
+        self.pipe = None
+    def get_events(self, user_id: str):
+        ret = self.redis.lrange(self.user_prefix+str(user_id), 0, -1)
+        return [dict(zip(self.user_keys,x.decode().split(self.sep))) for x in ret]
+    def add_event(self, user_id: str, data: Dict[str, str]):
+        vals = []
+        for key in self.user_keys:
+            vals.append(data.get(key,""))
+        val = self.sep.join(map(str, vals))
+        if self.pipe:
+            self.pipe.rpush(self.user_prefix+str(user_id), val)
+        else:
+            self.redis.rpush(self.user_prefix+str(user_id), val)
+        return self
+    def pop_event(self, user_id: str):
+        if self.pipe:
+            ret = self.pipe.lpop(self.user_prefix+str(user_id))
+        else:
+            ret = self.redis.lpop(self.user_prefix+str(user_id))
+        ret = dict(zip(self.user_keys,ret.decode().split(self.sep)))
+        return ret
+    def user_partition_num(self, user_data):
+        # Assumes same features as the item
+        return self.schema.partition_num(user_data)
+
+    def user_query(self, user_data, k, strategy_id=None, user_coldstart_item=None, user_coldstart_weight=1,user_id=None):
+        if not strategy_id:
+            strategy_id = self.schema.base_strategy_id()
+        if user_coldstart_item is None:
+            n = 0
+            vec = np.zeros(self.schema.dim)
+        else:
+            n = user_coldstart_weight
+            if hasattr(user_coldstart_item, "__call__"):
+                item = user_coldstart_item(user_data)
+            elif type(user_coldstart_item) == dict:
+                item = user_coldstart_item
+            vec = self.schema.encode(item, strategy_id)
+        user_partition_num = self.user_partition_num(user_data)
+        col_mapping = self.schema.component_breakdown()
+        labels, distances = [], []
+        if user_id is None:
+            user_id = user_data.get("id")
+        if user_id is None:
+            raise ValueError("user_id not supplied")
+        item_history = self.get_events(user_id)
+        for item in item_history:
+            item_id = item.get(self.item_key)
+            if item_id is None:
+                continue
+            w = self.event_weights.get(item.get(self.event_key),1)
+            # Calculate AVG
+            item_vectors = [v for vs in self.fetch(item_id, numpy=True).values() for v in vs]
+            n+=w*len(item_vectors)
+            vec += w*np.sum(item_vectors, axis=0)
+        if n>0:
+            vec /= n
+        # Override column values post aggregation, if needed
+        for col, enc in self.schema.user_encoders.items():
+            if col not in user_data:
+                continue
+            start, end = col_mapping[col]
+            vec[start:end] = enc(user_data[col])
+        # Query
+        item_labels, item_distances, _ = self.query_by_partition_and_vector(user_partition_num, strategy_id, vec, k)
+        labels.extend(item_labels)
+        distances.extend(item_distances)
+        return labels, distances
+
+
+
+        

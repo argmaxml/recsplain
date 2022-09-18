@@ -20,4 +20,4 @@ config_data = {
 }
 
 rec_strategy = rx.AvgUserStrategy()
-rec_strategy.init_schema(config_data)
+rec_strategy.init_schema(**config_data)

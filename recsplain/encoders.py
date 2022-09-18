@@ -529,4 +529,3 @@ class QwakEncoder(BaseEncoder):
     def encode(self, value):
         val = self.get_feature(value)
         return self.json_encode(val)
-
