@@ -72,6 +72,7 @@ class BaseStrategy:
             self.partitions[strategy_id][partition_num].add_items(items, num_ids)
             if strategy_id == self.schema.base_strategy_id():
                 self.schema.add_mapping(partition_num, num_ids, [d for d in data if d['id'] in ids])
+                self.schema.add_item_partition_mapping(partition_num, ids, strategy_id)
         return errors, affected_partitions
 
     def index_dataframe(self, df, parallel=True, strategy_id=None):
@@ -92,7 +93,8 @@ class BaseStrategy:
             num_id_range=list(range(num_id_start, num_id_start+len(data)))
             ids=[datum[self.schema.id_col] for datum in data]
             self.index_labels.extend(ids)
-            self.schema.add_mapping(partition_nums[partition], num_id_range, data)
+            self.schema.add_mapping(partition_nums[partition], num_id_range, data, strategy_id)
+            self.schema.add_item_partition_mapping(partition_nums[partition], ids, strategy_id)
             num_id_start+=len(data)
 
         if parallel:
@@ -189,7 +191,13 @@ class BaseStrategy:
         labels, distances = zip(*sorted(zip(labels, distances), key=at(1)))
         return labels, distances, explanation
 
-
+    def query_by_item_id(self, item_id, strategy_id, k, explain=False):
+        internal_id = self.index_labels.index(item_id)
+        partition_num = self.schema.item_partition_mapping[strategy_id][internal_id]
+        vector = self.schema.restore_vector_with_index(partition_num, internal_id, strategy_id)
+        labels, distances, explanation = self.query_by_partition_and_vector(partition_num, strategy_id, vector, k,
+                                                                            explain=explain)
+        return labels, distances, explanation
 
     def save_model(self, model_name):
         model_dir = (self.model_dir/model_name)
@@ -200,10 +208,10 @@ class BaseStrategy:
             json.dump(self.index_labels, f)
         with (model_dir/"schema.json").open('w') as f:
             json.dump(self.schema.to_dict(), f)
-        saved=0
+        saved = 0
         for strategy_id, partitions in self.partitions.items():
             for i,p in enumerate(partitions):
-                fname = str(model_dir/str(strategy_id + "_" + str(i)))
+                fname = str(model_dir/str(str(strategy_id) + "_" + str(i)))
                 try:
                     p.save_index(fname)
                     saved+=1
@@ -226,7 +234,7 @@ class BaseStrategy:
         loaded = 0
         for strategy_id, partitions in self.partitions.items():
             for i,p in enumerate(partitions):
-                fname = str(model_dir/str(strategy_id + "_" + str(i)))
+                fname = str(model_dir/(str(strategy_id) + "_" + str(i)))
                 try:
                     p.load_index(fname)
                     loaded+=1

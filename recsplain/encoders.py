@@ -10,11 +10,11 @@ from collections import defaultdict
 
 class PartitionSchema:
     __slots__ = ["encoders", "filters", "partitions", "dim", "metric", "defaults", "id_col", "user_encoders",
-                 "feature_embeddings", "feature_mapping", "item_mappings", "index_factory",
+                 "feature_embeddings", "feature_mapping", "item_mappings", "item_partition_mapping", "index_factory",
                  "strategies"]
 
     def __init__(self, encoders, strategies=[{"id": "0", "name": "default", "is_base": True}], filters=[], metric='ip', id_col="id",
-                 user_encoders={}, index_factory="Flat"):
+                 user_encoders={}, item_partition_mapping={}, index_factory="Flat"):
 
         self.strategies = strategies
         self.metric = metric
@@ -25,6 +25,7 @@ class PartitionSchema:
         self.user_encoders = self._parse_encoders(user_encoders)
         self.defaults = {}
         self.item_mappings = defaultdict(dict)
+        self.item_partition_mapping = item_partition_mapping
         for f, e in self.encoders[self.base_strategy_id()].items():
             if e.default is not None:
                 self.defaults[f] = e.default
@@ -121,8 +122,6 @@ class PartitionSchema:
         print("Added variant {v}".format(v=variant['id']))
         return variant_dict
 
-
-
     def encode(self, x, strategy_id=None, weights=None):
         if not strategy_id:
             strategy_id = self.base_strategy_id()
@@ -161,6 +160,13 @@ class PartitionSchema:
             assert len(weights) == len(self.encoders), "Invalid number of weight vector {w}".format(w=len(weights))
         else:
             raise TypeError("Usupported type for encode {t}".format(t=type(x)))
+
+    def add_item_partition_mapping(self, partition_num, ids, strategy_id=None):
+        if not strategy_id:
+            strategy_id = self.base_strategy_id()
+        if strategy_id not in self.item_partition_mapping:
+            self.item_partition_mapping[strategy_id] = []
+        self.item_partition_mapping[strategy_id].extend([partition_num] * len(ids))
 
     def add_mapping(self, partition_num, ids, data, strategy_id=None):
         if not strategy_id:
@@ -210,8 +216,9 @@ class PartitionSchema:
                     self.encoders.items()}
         user_encoders = {strategy_id: self._unparse_encoders(user_encoders) for strategy_id, user_encoders in
                          self.user_encoders.items()}
-        return {"encoders": encoders, "filters": filters, "index_factory": self.index_factory, "metric": self.metric, "id_col": self.id_col,
-                "user_encoders": user_encoders, "strategies": self.strategies}
+        return {"encoders": encoders, "filters": filters, "index_factory": self.index_factory, "metric": self.metric,
+                "id_col": self.id_col, "user_encoders": user_encoders, "strategies": self.strategies,
+                "item_partition_mapping": self.item_partition_mapping}
 
     def restore_vector_with_index(self, partition_num, index, strategy_id=None):
         if not strategy_id:
@@ -227,7 +234,7 @@ class PartitionSchema:
         return np.array(output).reshape(1, self.dim)
 
     def base_strategy_id(self):
-        return [strategy['id'] for strategy in self.strategies if 'is_base' in strategy][0]
+        return str([strategy['id'] for strategy in self.strategies if 'is_base' in strategy][0])
 
 
 class BaseEncoder:
