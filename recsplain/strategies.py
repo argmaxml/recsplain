@@ -63,17 +63,17 @@ class BaseStrategy:
                 errors.append((datum, str(e)))
         vecs = sorted(vecs, key=at(0))
         affected_partitions = 0
-        labels = set(self.index_labels)
+        labels = set(map(str,self.index_labels))
         for partition_num, grp in itertools.groupby(vecs, at(0)):
             _, items, ids = zip(*grp)
             if strategy_id == self.schema.base_strategy_id():
                 for id in ids:
-                    if id in labels:
+                    if str(id) in labels:
                         errors.append((datum, "{id} already indexed.".format(id=id)))
                         continue  # skip labels that already exists
                     else:
-                        labels.add(id)
-                        self.index_labels.append(id)
+                        labels.add(str(id))
+                        self.index_labels.append(str(id))
             affected_partitions += 1
             num_ids = list(map(self.index_labels.index, ids))
             self.partitions[strategy_id][partition_num].add_items(items, num_ids)
@@ -98,7 +98,7 @@ class BaseStrategy:
             num_ids[partition] =(num_id_start, num_id_start+len(data))
             num_id_range=list(range(num_id_start, num_id_start+len(data)))
             ids=[datum[self.schema.id_col] for datum in data]
-            self.index_labels.extend(ids)
+            self.index_labels.extend(map(str,ids))
             self.schema.add_mapping(partition_nums[partition], num_id_range, data)
             num_id_start+=len(data)
 
@@ -249,11 +249,11 @@ class BaseStrategy:
     def fetch(self, lbls, strategy_id=None, numpy=False):
         if not strategy_id:
             strategy_id = self.schema.base_strategy_id()
-        sil = set(self.index_labels)
+        sil = set(map(str,self.index_labels))
         if type(lbls) == list:
-            found = [l for l in lbls if l in sil]
+            found = [str(l) for l in lbls if str(l) in sil]
         else:
-            found = [lbls] if lbls in sil else []
+            found = [str(lbls)] if str(lbls) in sil else []
         ids = [self.index_labels.index(l) for l in found]
         ret = collections.defaultdict(list)
         for partition_num, (p,pn) in enumerate(zip(self.partitions, self.schema.partitions)):
@@ -367,7 +367,14 @@ class RedisStrategy(BaseStrategy):
     def add_event(self, user_id: str, data: Dict[str, str]):
         vals = []
         for key in self.user_keys:
-            vals.append(data.get(key,""))
+            v = data.get(key,"")
+            # ad hoc int trimming
+            try:
+                if v==int(v):
+                    v=int(v)
+            except:
+                pass
+            vals.append(v)
         val = self.sep.join(map(str, vals))
         if self.pipe:
             self.pipe.rpush(self.user_prefix+str(user_id), val)
@@ -413,6 +420,7 @@ class RedisStrategy(BaseStrategy):
             w = self.event_weights.get(item.get(self.event_key),1)
             # Calculate AVG
             item_vectors = [v for vs in self.fetch(item_id, numpy=True).values() for v in vs]
+            print("FOUND", item_vectors)
             n+=w*len(item_vectors)
             vec += w*np.sum(item_vectors, axis=0)
         if n>0:
