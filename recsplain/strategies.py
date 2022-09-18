@@ -265,7 +265,8 @@ class BaseStrategy:
                     else:
                         # ret[pn].extend([tuple(float(v) for v in vec) for vec in p.get_items([id])])
                         ret[pn].extend([tuple(float(v) for v in vec) for vec in self.schema.restore_vector_with_index(partition_num, id, strategy_id)])
-                except Exception as e:
+                except KeyError as e:
+                    print(str(e))
                     # not found
                     pass
         ret = map(lambda k,v: (k[0],v) if len(k)==1 else (str(k), v),ret.keys(), ret.values())
