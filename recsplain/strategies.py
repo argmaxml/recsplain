@@ -256,7 +256,7 @@ class BaseStrategy:
             found = [str(lbls)] if str(lbls) in sil else []
         ids = [self.index_labels.index(l) for l in found]
         ret = collections.defaultdict(list)
-        for partition_num, (p,pn) in enumerate(zip(self.partitions, self.schema.partitions)):
+        for partition_num, (p,pn) in enumerate(zip(self.partitions[strategy_id], self.schema.partitions)):
             for id in ids:
                 try:
                     if numpy:
@@ -266,7 +266,7 @@ class BaseStrategy:
                         # ret[pn].extend([tuple(float(v) for v in vec) for vec in p.get_items([id])])
                         ret[pn].extend([tuple(float(v) for v in vec) for vec in self.schema.restore_vector_with_index(partition_num, id, strategy_id)])
                 except KeyError as e:
-                    print(str(e))
+                    # print(str(e))
                     # not found
                     pass
         ret = map(lambda k,v: (k[0],v) if len(k)==1 else (str(k), v),ret.keys(), ret.values())
@@ -421,7 +421,6 @@ class RedisStrategy(BaseStrategy):
             w = self.event_weights.get(item.get(self.event_key),1)
             # Calculate AVG
             item_vectors = [v for vs in self.fetch(item_id, numpy=True).values() for v in vs]
-            print("FOUND", item_vectors)
             n+=w*len(item_vectors)
             vec += w*np.sum(item_vectors, axis=0)
         if n>0:
@@ -436,6 +435,7 @@ class RedisStrategy(BaseStrategy):
         item_labels, item_distances, _ = self.query_by_partition_and_vector(user_partition_num, strategy_id, vec, k)
         labels.extend(item_labels)
         distances.extend(item_distances)
+        labels, distances = zip(*sorted(zip(labels, distances), key=at(1)))
         return labels, distances
 
 
