@@ -15,7 +15,7 @@ class RedisTest(unittest.TestCase):
         self.strategy.init_schema(**schema_file)
         df = pd.DataFrame([
             {'content_id': 345633,
-            'organization_id': 4029,
+            'organization_id': 'org_A',
             'item_source': 2,
             'item_type': 'pdf',
             'tags': 'NaN',
@@ -23,7 +23,7 @@ class RedisTest(unittest.TestCase):
             'article_title': 'NaN',
             'views_count': 133},
             {'content_id': 3265,
-            'organization_id': 2,
+            'organization_id': 'org_B',
             'item_source': 1,
             'item_type': 'link',
             'tags': 'NaN',
@@ -31,7 +31,7 @@ class RedisTest(unittest.TestCase):
             'article_title': 'NaN',
             'views_count': 13},
             {'content_id': 145119,
-            'organization_id': 2,
+            'organization_id': 'org_B',
             'item_source': 1,
             'item_type': 'snapshot',
             'tags': 'NaN',
@@ -39,7 +39,7 @@ class RedisTest(unittest.TestCase):
             'article_title': 'NaN',
             'views_count': 165},
             {'content_id': 417215,
-            'organization_id': 4029,
+            'organization_id': 'org_A',
             'item_source': 2,
             'item_type': 'mp4',
             'tags': 'NaN',
@@ -47,7 +47,7 @@ class RedisTest(unittest.TestCase):
             'article_title': 'NaN',
             'views_count': 125},
             {'content_id': 383246,
-            'organization_id': 4029,
+            'organization_id': 'org_A',
             'item_source': 2,
             'item_type': 'pdf',
             'tags': 'NaN',
@@ -60,11 +60,9 @@ class RedisTest(unittest.TestCase):
         lead_event = {'action_timestamp': '2000-01-01 0:00:00.00000',
                     'action': 'Item View',
                     'content_item_id': '345633',
-                    'organization_id': 4029}
+                    'organization_id': 'org_A'}
         with self.strategy :
-            already_exists = self.strategy.get_events(123)
-            if already_exists:
-                self.strategy.pop_event(123)
+            self.strategy.del_user(123)
             self.strategy.add_event(123,lead_event)
             ret = self.strategy.get_events(123)
             self.assertEqual(ret, lead_event)
@@ -73,15 +71,15 @@ class RedisTest(unittest.TestCase):
         lead_data = {'action_timestamp': '2000-01-01 0:00:00.00000',
                 'action': 'Item View',
                 'content_item_id': '345633',
-                'organization_id': 4029}
+                'organization_id': 'org_A'}
         fetched = self.strategy.fetch("345633")
-        self.assertEqual(len(fetched[4029][0]),17774)
+        self.assertEqual(len(fetched['org_A'][0]),17774)
     
     def test_user_query(self):
         lead_data = {'action_timestamp': '2000-01-01 0:00:00.00000',
                 'action': 'Item View',
                 'content_item_id': '345633',
-                'organization_id': 4029}
+                'organization_id': 'org_A'}
         ids,dists = self.strategy.user_query(user_id=123, user_data = lead_data, k=5)
         dists = [round(i,2) for i in dists]
         self.assertListEqual(list(ids), ['417215', '345633', '383246'])

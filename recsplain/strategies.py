@@ -362,8 +362,16 @@ class RedisStrategy(BaseStrategy):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.pipe.execute()
         self.pipe = None
+    def del_user(self, user_id):
+        if self.pipe:
+            self.pipe.delete(self.user_prefix+str(user_id))
+        else:
+            self.redis.delete(self.user_prefix+str(user_id))
     def get_events(self, user_id: str):
-        ret = self.redis.lrange(self.user_prefix+str(user_id), 0, -1)
+        if self.pipe:
+            ret = self.redis.lrange(self.user_prefix+str(user_id), 0, -1)
+        else:
+            ret = self.redis.lrange(self.user_prefix+str(user_id), 0, -1)
         return [dict(zip(self.user_keys,x.decode().split(self.sep))) for x in ret]
     def add_event(self, user_id: str, data: Dict[str, str]):
         vals = []
