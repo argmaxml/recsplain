@@ -18,7 +18,7 @@ setup(
         "joblib>=0.17.0",
         "tqdm>=4.62.3",
         "pandas>=1.3.0",
-        "scikit-learning>=0.19.0",
+        "scikit-learn>=0.19.0",
     ],
     long_description="https://github.com/argmaxml/recsplain/blob/master/README.md",
     long_description_content_type="text/markdown",
