@@ -1,89 +1,74 @@
+from email.policy import default
 import sys, unittest, json
 import pandas as pd
 import numpy as np
 from pathlib import Path
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 from recsplain import RedisStrategy
+from operator import itemgetter as at
+
+# Requires: a running docker on the local host
+#          docker run -p 6379:6379 -d redis
 
 class RedisTest(unittest.TestCase):
     def setUp(self):
-        with open(Path(__file__).parent/'config.json') as f:
-            redis_config = json.load(f)
-        self.strategy = RedisStrategy(redis_credentials = redis_config['redis'], similarity_engine="faiss", event_key = 'action',item_key='content_item_id',user_keys=['action_timestamp','action','content_item_id','organization_id'])
-        with open(Path(__file__).parent/'schema.json') as f:
-            schema_file = json.load(f)
-        self.strategy.init_schema(**schema_file)
+        redis_credentials = {
+            'host': "localhost",
+            'port': 6379,
+            'db': 0
+        }
+        weights = {"view": 5, "click": 100}
+        self.strategy = RedisStrategy(redis_credentials = redis_credentials, similarity_engine="sk",
+            event_key = 'action',item_key='id',user_keys=['ts','action','id','organization_id'],
+            event_weights=weights)
+        schema = {
+            "filters": [{"field": "organization_id", "values": ['org_A', 'org_B']}],
+            "encoders": [{"field": "tag", "type": "soh", "values":["t_A", "t_B", "t_C"], "default":"", "weight":1}],
+        }
+        self.strategy.init_schema(**schema)
         df = pd.DataFrame([
-            {'content_id': 345633,
-            'organization_id': 'org_A',
-            'item_source': 2,
-            'item_type': 'pdf',
-            'tags': 'NaN',
-            'category_names': 'Protect your Organization;Provide Resources for Business Continuity',
-            'article_title': 'NaN',
-            'views_count': 133},
-            {'content_id': 3265,
-            'organization_id': 'org_B',
-            'item_source': 1,
-            'item_type': 'link',
-            'tags': 'NaN',
-            'category_names': 'NaN',
-            'article_title': 'NaN',
-            'views_count': 13},
-            {'content_id': 145119,
-            'organization_id': 'org_B',
-            'item_source': 1,
-            'item_type': 'snapshot',
-            'tags': 'NaN',
-            'category_names': 'NaN',
-            'article_title': 'NaN',
-            'views_count': 165},
-            {'content_id': 417215,
-            'organization_id': 'org_A',
-            'item_source': 2,
-            'item_type': 'mp4',
-            'tags': 'NaN',
-            'category_names': 'Access Event Resources;Event Slides and Resources',
-            'article_title': 'NaN',
-            'views_count': 125},
-            {'content_id': 383246,
-            'organization_id': 'org_A',
-            'item_source': 2,
-            'item_type': 'pdf',
-            'tags': 'NaN',
-            'category_names': 'NaN',
-            'article_title': 'NaN',
-            'views_count': 673}])
+            ["id0","org_A","t_A"],
+            ["id1","org_A","t_B"],
+            ["id2","org_B","t_C"],
+            ["id3","org_B","t_A"],
+            ["id4","org_A","t_B"],
+            ["id5","org_A","t_C"],
+            ["id6","org_B","t_A"],
+            ["id7","org_B","t_B"],
+            ["id8","org_A","t_C"],
+            ["id9","org_A","t_A"],
+            ], columns=["id","organization_id","tag"])
         self.strategy.index_dataframe(df, parallel=False)
+        # self.strategy.index_dataframe(df)
     
     def test_read_write_to_redis(self):        
-        lead_event = {'action_timestamp': '2000-01-01 0:00:00.00000',
-                    'action': 'Item View',
-                    'content_item_id': '345633',
-                    'organization_id': 'org_A'}
         with self.strategy :
-            self.strategy.del_user(123)
-            self.strategy.add_event(123,lead_event)
-            ret = self.strategy.get_events(123)
-            self.assertEqual(ret, lead_event)
+            self.strategy.del_user(345633)
+            self.strategy.add_event(345633,{'ts': 123, 'action': 'view', 'id': 'id1', 'organization_id': 'org_A'})
+            self.strategy.add_event(345633,{'ts': 125, 'action': 'click', 'id': 'id1', 'organization_id': 'org_A'})
+
+        ret = self.strategy.get_events(345633)
+        self.assertEqual(",".join(map(at("action"),ret)), "view,click")
+        self.assertEqual(",".join(map(at("id"),ret)), "id1,id1")
+        self.assertEqual(",".join(map(at("ts"),ret)), "123,125")
 
     def test_fetch(self):
-        lead_data = {'action_timestamp': '2000-01-01 0:00:00.00000',
-                'action': 'Item View',
-                'content_item_id': '345633',
-                'organization_id': 'org_A'}
-        fetched = self.strategy.fetch("345633")
-        self.assertEqual(len(fetched['org_A'][0]),17774)
+        fetched = self.strategy.fetch("id1")
+        self.assertIn('org_A', fetched)
+        self.assertEqual(len(fetched['org_A']),1)
+        self.assertEqual(list(fetched['org_A'][0]),[0,1,0])
     
     def test_user_query(self):
-        lead_data = {'action_timestamp': '2000-01-01 0:00:00.00000',
-                'action': 'Item View',
-                'content_item_id': '345633',
-                'organization_id': 'org_A'}
-        ids,dists = self.strategy.user_query(user_id=123, user_data = lead_data, k=5)
-        dists = [round(i,2) for i in dists]
-        self.assertListEqual(list(ids), ['417215', '345633', '383246'])
-        self.assertListEqual(list(dists), [169.25, 181.89, 899.09])
+        with self.strategy :
+            self.strategy.del_user(77787)
+            self.strategy.add_event(77787,{'ts': 123, 'action': 'view', 'id': 'id0', 'organization_id': 'org_A'})
+            self.strategy.add_event(77787,{'ts': 123, 'action': 'view', 'id': 'id2', 'organization_id': 'org_A'})
+            self.strategy.add_event(77787,{'ts': 123, 'action': 'view', 'id': 'id2', 'organization_id': 'org_A'})
+            self.strategy.add_event(77787,{'ts': 123, 'action': 'click', 'id': 'id4', 'organization_id': 'org_A'})
+        ids,dists = self.strategy.user_query(user_id=77787, user_data = {"organization_id":"org_A"}, k=3)
+        self.assertListEqual(list(ids), ['id4', 'id2', 'id0'])
+        # dists = [round(i,2) for i in dists]
+        # self.assertListEqual(list(dists), [169.25, 181.89, 899.09])
         
 
 
