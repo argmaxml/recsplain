@@ -17,7 +17,7 @@ from joblib import delayed, Parallel
 from .similarity_helpers import parse_server_name, FaissIndexFactory
 
 class BaseStrategy:
-    __slots__ = ["schema", "partitions","index_labels", "model_dir", "IndexEngine", "engine_params"]
+    __slots__ = ["schema", "partitions","index_labels", "model_dir", "IndexEngine", "engine_params", "parallel"]
     def __init__(self, model_dir=None, similarity_engine=None ,engine_params={}):
         if similarity_engine is None:
             self.IndexEngine = FaissIndexFactory
@@ -32,6 +32,7 @@ class BaseStrategy:
         self.partitions = {}
         self.schema = {}
         self.index_labels = []
+        self.parallel = True
 
 
     def init_schema(self, **kwargs):
@@ -81,9 +82,11 @@ class BaseStrategy:
                 self.schema.add_mapping(partition_num, num_ids, [d for d in data if d['id'] in ids])
         return errors, affected_partitions
 
-    def index_dataframe(self, df, parallel=True, strategy_id=None):
+    def index_dataframe(self, df, parallel=None, strategy_id=None):
         if not strategy_id:
             strategy_id = self.schema.base_strategy_id()
+        if parallel is None:
+            parallel = self.parallel
         partitioned = df.groupby(self.schema.filters).apply(lambda ds: ds.to_dict(orient='records'))
         encoded = dict()
         num_ids = dict()
@@ -356,6 +359,7 @@ class RedisStrategy(BaseStrategy):
         self.item_key=item_key
         self.event_weights=event_weights
         self.pipe = None
+        self.parallel = False # HACK
     def __enter__(self):
         self.pipe = self.redis.pipeline()
         return self
