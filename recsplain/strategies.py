@@ -17,7 +17,7 @@ from joblib import delayed, Parallel
 from .similarity_helpers import parse_server_name, FaissIndexFactory
 
 class BaseStrategy:
-    __slots__ = ["schema", "partitions","index_labels", "model_dir", "IndexEngine", "engine_params"]
+    __slots__ = ["schema", "partitions","index_labels", "model_dir", "IndexEngine", "engine_params", "parallel"]
     def __init__(self, model_dir=None, similarity_engine=None ,engine_params={}):
         if similarity_engine is None:
             self.IndexEngine = FaissIndexFactory
@@ -32,6 +32,7 @@ class BaseStrategy:
         self.partitions = {}
         self.schema = {}
         self.index_labels = []
+        self.parallel = True
 
 
     def init_schema(self, **kwargs):
@@ -63,17 +64,17 @@ class BaseStrategy:
                 errors.append((datum, str(e)))
         vecs = sorted(vecs, key=at(0))
         affected_partitions = 0
-        labels = set(self.index_labels)
+        labels = set(map(str,self.index_labels))
         for partition_num, grp in itertools.groupby(vecs, at(0)):
             _, items, ids = zip(*grp)
             if strategy_id == self.schema.base_strategy_id():
                 for id in ids:
-                    if id in labels:
+                    if str(id) in labels:
                         errors.append((datum, "{id} already indexed.".format(id=id)))
                         continue  # skip labels that already exists
                     else:
-                        labels.add(id)
-                        self.index_labels.append(id)
+                        labels.add(str(id))
+                        self.index_labels.append(str(id))
             affected_partitions += 1
             num_ids = list(map(self.index_labels.index, ids))
             self.partitions[strategy_id][partition_num].add_items(items, num_ids)
@@ -81,9 +82,11 @@ class BaseStrategy:
                 self.schema.add_mapping(partition_num, num_ids, [d for d in data if d['id'] in ids])
         return errors, affected_partitions
 
-    def index_dataframe(self, df, parallel=True, strategy_id=None):
+    def index_dataframe(self, df, parallel=None, strategy_id=None):
         if not strategy_id:
             strategy_id = self.schema.base_strategy_id()
+        if parallel is None:
+            parallel = self.parallel
         partitioned = df.groupby(self.schema.filters).apply(lambda ds: ds.to_dict(orient='records'))
         encoded = dict()
         num_ids = dict()
@@ -98,7 +101,7 @@ class BaseStrategy:
             num_ids[partition] =(num_id_start, num_id_start+len(data))
             num_id_range=list(range(num_id_start, num_id_start+len(data)))
             ids=[datum[self.schema.id_col] for datum in data]
-            self.index_labels.extend(ids)
+            self.index_labels.extend(map(str,ids))
             self.schema.add_mapping(partition_nums[partition], num_id_range, data)
             num_id_start+=len(data)
 
@@ -249,14 +252,14 @@ class BaseStrategy:
     def fetch(self, lbls, strategy_id=None, numpy=False):
         if not strategy_id:
             strategy_id = self.schema.base_strategy_id()
-        sil = set(self.index_labels)
+        sil = set(map(str,self.index_labels))
         if type(lbls) == list:
-            found = [l for l in lbls if l in sil]
+            found = [str(l) for l in lbls if str(l) in sil]
         else:
-            found = [lbls] if lbls in sil else []
+            found = [str(lbls)] if str(lbls) in sil else []
         ids = [self.index_labels.index(l) for l in found]
         ret = collections.defaultdict(list)
-        for partition_num, (p,pn) in enumerate(zip(self.partitions, self.schema.partitions)):
+        for partition_num, (p,pn) in enumerate(zip(self.partitions[strategy_id], self.schema.partitions)):
             for id in ids:
                 try:
                     if numpy:
@@ -265,7 +268,8 @@ class BaseStrategy:
                     else:
                         # ret[pn].extend([tuple(float(v) for v in vec) for vec in p.get_items([id])])
                         ret[pn].extend([tuple(float(v) for v in vec) for vec in self.schema.restore_vector_with_index(partition_num, id, strategy_id)])
-                except Exception as e:
+                except KeyError as e:
+                    # print(str(e))
                     # not found
                     pass
         ret = map(lambda k,v: (k[0],v) if len(k)==1 else (str(k), v),ret.keys(), ret.values())
@@ -355,19 +359,35 @@ class RedisStrategy(BaseStrategy):
         self.item_key=item_key
         self.event_weights=event_weights
         self.pipe = None
+        self.parallel = False # HACK
     def __enter__(self):
         self.pipe = self.redis.pipeline()
         return self
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.pipe.execute()
         self.pipe = None
+    def del_user(self, user_id):
+        if self.pipe:
+            self.pipe.delete(self.user_prefix+str(user_id))
+        else:
+            self.redis.delete(self.user_prefix+str(user_id))
     def get_events(self, user_id: str):
-        ret = self.redis.lrange(self.user_prefix+str(user_id), 0, -1)
+        if self.pipe:
+            ret = self.redis.lrange(self.user_prefix+str(user_id), 0, -1)
+        else:
+            ret = self.redis.lrange(self.user_prefix+str(user_id), 0, -1)
         return [dict(zip(self.user_keys,x.decode().split(self.sep))) for x in ret]
     def add_event(self, user_id: str, data: Dict[str, str]):
         vals = []
         for key in self.user_keys:
-            vals.append(data.get(key,""))
+            v = data.get(key,"")
+            # ad hoc int trimming
+            try:
+                if v==int(v):
+                    v=int(v)
+            except:
+                pass
+            vals.append(v)
         val = self.sep.join(map(str, vals))
         if self.pipe:
             self.pipe.rpush(self.user_prefix+str(user_id), val)
@@ -427,6 +447,7 @@ class RedisStrategy(BaseStrategy):
         item_labels, item_distances, _ = self.query_by_partition_and_vector(user_partition_num, strategy_id, vec, k)
         labels.extend(item_labels)
         distances.extend(item_distances)
+        labels, distances = zip(*sorted(zip(labels, distances), key=at(1)))
         return labels, distances
 
 
