@@ -9,7 +9,10 @@ try:
 except ModuleNotFoundError:
     print ("hnswlib not found")
     HNSWMock = collections.namedtuple("HNSWMock", ("Index", "max_elements"))
-    hnswlib = HNSWMock(None,0)
+    class MockHnsw:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+    hnswlib = HNSWMock(MockHnsw(),0)
 try:
     import faiss
     available_engines.add("faiss")
