@@ -178,6 +178,8 @@ class SciKitNearestNeighbors:
         
     def add_items(self, data, ids=None, num_threads=-1):
         self.items.extend(data)
+        if ids is None:
+            ids = list(range(len(self.items),len(self.items)+len(data)))
         self.ids.extend(ids)
         self.fitted = False
 
@@ -189,7 +191,8 @@ class SciKitNearestNeighbors:
             self.index.fit(self.items)
             self.fitted = True
         scores, idx = self.index.kneighbors(data ,k, return_distance=True)
-        return (scores, idx)
+        names = [[self.ids[i] for i in ids] for ids in idx]
+        return scores, names
 
     def get_max_elements(self):
         return -1
