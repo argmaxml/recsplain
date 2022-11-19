@@ -165,7 +165,7 @@ class SciKitNearestNeighbors:
         self.items = []
         self.ids = []
         self.fitted = False
-        self.index = NearestNeighbors(metric=self.space,n_jobs=-1,n_neighbors=10, **kwargs)
+        self.index = NearestNeighbors(metric=self.space,n_jobs=-1,n_neighbors=10)
 
     def __len__(self):
         return len(self.items)
@@ -218,9 +218,12 @@ class RedisIndex:
         self.pipe = None
         if overwrite:
             try:
-                self.redis.ft(self.index_name).dropindex(delete_documents=True)
+                self.redis.ft(self.index_name).info()
+                index_exists = True
             except:
-                pass
+                index_exists = False
+            if index_exists:
+                self.redis.ft(self.index_name).dropindex(delete_documents=True)
         self.init_hnsw()
         # applicable only for user events
         self.user_keys=[]
