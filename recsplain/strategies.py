@@ -345,7 +345,7 @@ class AvgUserStrategy(BaseStrategy):
 
 class RedisStrategy(BaseStrategy):
     def __init__(self, model_dir=None, similarity_engine=None, engine_params={}, redis_credentials=None, user_prefix="user:", value_sep="|", user_keys=[],event_key="event",item_key="item",event_weights={}):
-        super().__init__(model_dir, similarity_engine, engine_params)
+        super().__init__(model_dir, similarity_engine, dict(engine_params,redis_credentials=redis_credentials))
         assert Redis is not None, "RedisStrategy requires redis-py to be installed"
         assert redis_credentials is not None, "RedisStrategy requires redis credentials"
         assert len(user_keys)>0, "user_keys not supplied"

@@ -94,7 +94,7 @@ class FaissIndexFactory:
         self.index = faiss.read_index(fname)
 
 class LazyHnsw(hnswlib.Index):
-    def __init__(self, space, dim, index_factory=None,max_elements=1024, ef_construction=200, M=16):
+    def __init__(self, space, dim, index_factory=None,max_elements=1024, ef_construction=200, M=16,**kwargs):
         super().__init__(space, dim)
         self.init_max_elements = max_elements
         self.init_ef_construction = ef_construction
@@ -203,7 +203,7 @@ class SciKitNearestNeighbors:
 
 
 class RedisIndex:
-    def __init__(self, space, dim, index_factory=None,redis_credentials=None,max_elements=1024, ef_construction=200, M=16, overwrite=True):
+    def __init__(self, space, dim, index_factory=None,redis_credentials=None,max_elements=1024, ef_construction=200, M=16, overwrite=True,**kwargs):
         self.space = space
         self.dim = dim
         self.max_elements = max_elements

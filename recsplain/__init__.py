@@ -1,4 +1,4 @@
-__version__="0.0.93"
+__version__="0.0.94"
 from .similarity_helpers import SciKitNearestNeighbors, RedisIndex
 from .strategies import BaseStrategy, AvgUserStrategy, RedisStrategy
 from .encoders import PartitionSchema
