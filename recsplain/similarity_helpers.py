@@ -203,7 +203,7 @@ class SciKitNearestNeighbors:
 
 
 class RedisIndex:
-    def __init__(self, space, dim, index_factory=None,redis_credentials=None,max_elements=1024, ef_construction=200, M=16, overwrite=False):
+    def __init__(self, space, dim, index_factory=None,redis_credentials=None,max_elements=1024, ef_construction=200, M=16, overwrite=True):
         self.space = space
         self.dim = dim
         self.max_elements = max_elements
