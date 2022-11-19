@@ -217,7 +217,10 @@ class RedisIndex:
         self.redis = Redis(**redis_credentials)
         self.pipe = None
         if overwrite:
-            self.redis.ft(self.index_name).dropindex(delete_documents=True)
+            try:
+                self.redis.ft(self.index_name).dropindex(delete_documents=True)
+            except:
+                pass
         self.init_hnsw()
         # applicable only for user events
         self.user_keys=[]
