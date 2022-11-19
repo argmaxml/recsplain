@@ -236,13 +236,13 @@ class RedisIndex:
         return super().get_items([item])[0]
 
     def user_keys(self):
-        return self.redis.keys("user:*")
+        return [s.decode()[5:] for s in self.redis.keys("user:*")]
 
     def item_keys(self):
-        return self.redis.keys("item:*")
+        return [s.decode()[5:] for s in self.redis.keys("item:*")]
 
     def vector_keys(self):
-        return self.redis.keys("vec:*")
+        return [s.decode()[4:] for s in self.redis.keys("vec:*")]
 
     def search(self, data, k=1,partition=None):
         query_vector = np.array(data).astype(np.float32).tobytes()
@@ -345,3 +345,4 @@ if __name__=="__main__":
     sim.add_items(data,bids,partition="b")
     # print(sim.search(data[0],k=10,partition=None))
     # print(sim.get_items(aids[:10]))
+    print (sim.item_keys())
