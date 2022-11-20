@@ -49,7 +49,7 @@ def parse_server_name(sname):
 
 
 class FaissIndexFactory:
-    def __init__(self, space, dim, index_factory, **kwargs):
+    def __init__(self, space:str, dim:int, index_factory:str, **kwargs):
         if index_factory == '':
             index_factory = 'Flat'
         if space in ['ip', 'cosine']:
@@ -94,7 +94,7 @@ class FaissIndexFactory:
         self.index = faiss.read_index(fname)
 
 class LazyHnsw(hnswlib.Index):
-    def __init__(self, space, dim, index_factory=None,max_elements=1024, ef_construction=200, M=16,**kwargs):
+    def __init__(self, space:str, dim:int, max_elements=1024, ef_construction=200, M=16,**kwargs):
         super().__init__(space, dim)
         self.init_max_elements = max_elements
         self.init_ef_construction = ef_construction
@@ -155,7 +155,7 @@ class LazyHnsw(hnswlib.Index):
 
 
 class SciKitNearestNeighbors:
-    def __init__(self, space, dim, index_factory=None, **kwargs):
+    def __init__(self, space:str, dim:int, **kwargs):
         if space=="ip":
             self.space = "cosine"
             sys.stderr.write("Warning: ip is not supported by sklearn, falling back to cosine")
@@ -203,15 +203,16 @@ class SciKitNearestNeighbors:
 
 
 class RedisIndex:
-    def __init__(self, space, dim, index_factory=None,redis_credentials=None,max_elements=1024, ef_construction=200, M=16, overwrite=True,**kwargs):
+    def __init__(self, space:str, dim:int, redis_credentials=None,max_elements=1024, ef_construction=200, M=16, overwrite=True,**kwargs):
         self.space = space
         self.dim = dim
         self.max_elements = max_elements
         self.ef_construction = ef_construction
         self.M = M
-        if index_factory is None:
-            index_factory = "idx"
-        self.index_name = index_factory
+        if kwargs.get("index_name") is None:
+            self.index_name = "idx"
+        else:
+            self.index_name = kwargs.get("index_name")
         if redis_credentials is None:
             raise Exception("Redis credentials must be provided")
         self.redis = Redis(**redis_credentials)
@@ -242,15 +243,19 @@ class RedisIndex:
         return super().get_items([item])[0]
 
     def user_keys(self):
+        """Get all user keys"""
         return [s.decode()[5:] for s in self.redis.keys("user:*")]
 
     def item_keys(self):
+        """Get all item keys"""
         return [s.decode()[5:] for s in self.redis.keys("item:*")]
 
     def vector_keys(self):
+        """Get all vector keys"""
         return [s.decode()[4:] for s in self.redis.keys("vec:*")]
 
     def search(self, data, k=1,partition=None):
+        """Search the nearest neighbors of the given vectors, and a given partition."""
         query_vector = np.array(data).astype(np.float32).tobytes()
         #prepare the query
         p = "(@partition:{"+partition+"})" if partition is not None else "*"
@@ -264,6 +269,7 @@ class RedisIndex:
         return scores, ids
 
     def add_items(self, data, ids=None, partition=None):
+        """Add items and ids to the index, if a partition is not defined it defaults to NONE"""
         self.pipe = self.redis.pipeline(transaction=False)
         if partition is None:
             partition="NONE"
@@ -276,12 +282,17 @@ class RedisIndex:
         self.pipe = None
 
     def get_items(self, ids=None):
+        """Get items by id"""
         ret = []
         for id in ids:
             ret.append(np.frombuffer(self.redis.hget("item:"+str(id), "embedding"), dtype=np.float32))
         return np.vstack(ret)
 
     def add_user_event(self, user_id: str, data: Dict[str, str],ttl: int = 60*60*24):
+        """
+        Adds a user event to the index. The event is stored in a hash with the key user:{user_id} and the fields
+        fields are defined by the `user_keys` property
+        """
         if not any(self.user_keys):
             raise Exception("User keys must be set before adding user events")
         vals = []
@@ -305,24 +316,28 @@ class RedisIndex:
                 self.redis.expire("user:"+str(user_id), ttl)
         return self
     def del_user(self, user_id):
+        """Delete a user key from Redis"""
         if self.pipe:
             self.pipe.delete("user:"+str(user_id))
         else:
             self.redis.delete("user:"+str(user_id))
     
     def get_user_events(self, user_id: str):
+        """Gets a list of user events by key"""
         if not any(self.user_keys):
             raise Exception("User keys must be set before getting user events")
         ret = self.redis.lrange("user:"+str(user_id), 0, -1)
         return [dict(zip(self.user_keys,x.decode().split('|'))) for x in ret]
     
-    def set_vector(self, key, arr):
+    def set_vector(self, key, arr, prefix="vec:"):
+        """Sets a numpy array as a vector in redis"""
         emb = np.array(arr).astype(np.float32).tobytes()
-        self.redis.set("vec:"+str(key), emb)
+        self.redis.set(prefix+str(key), emb)
         return self
     
-    def get_vector(self, key):
-        return np.frombuffer(self.redis.get("vec:"+str(key)), dtype=np.float32)
+    def get_vector(self, key, prefix="vec:"):
+        """Gets a numpy array from redis"""
+        return np.frombuffer(self.redis.get(prefix+str(key)), dtype=np.float32)
 
 
     def init_hnsw(self, **kwargs):
@@ -333,12 +348,15 @@ class RedisIndex:
         ])  
 
     def get_current_count(self):
+        """Get number of items in index"""
         return int(self.redis.ft(self.index_name).info()["num_docs"])
 
     def get_max_elements(self):
+        """Get max elements in index"""
         return self.max_elements
     
     def info(self):
+        """Get Redis info as dict"""
         return self.redis.ft(self.index_name).info()
 
 if __name__=="__main__":
