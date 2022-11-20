@@ -38,7 +38,7 @@ class BaseStrategy:
     def init_schema(self, **kwargs):
         self.schema = PartitionSchema(**kwargs)
         self.partitions[self.schema.base_strategy_id()] = [self.IndexEngine(self.schema.metric, self.schema.dim,
-                                                                            self.schema.index_factory,
+                                                                            index_factory=self.schema.index_factory,
                                                                             **self.engine_params)
                                                            for _ in self.schema.partitions]
         enc_sizes = {k: len(v) for k, v in self.schema.encoders[self.schema.base_strategy_id()].items()}
@@ -47,7 +47,7 @@ class BaseStrategy:
     def add_variant(self, variant):
         variant = self.schema.add_variant(variant)
         self.partitions[variant['id']] = [self.IndexEngine(self.schema.metric, self.schema.dim,
-                                                           self.schema.index_factory, **self.engine_params)
+                                                           index_factory=self.schema.index_factory, **self.engine_params)
                                           for _ in self.schema.partitions]
         # enc_sizes = {k: len(v) for k, v in self.schema.encoders[self.schema.base_strategy_id()].items()}
         return variant#, enc_sizes
@@ -228,7 +228,7 @@ class BaseStrategy:
         with (model_dir/"schema.json").open('r') as f:
             schema_dict=json.load(f)
         self.schema = PartitionSchema(**schema_dict)
-        self.partitions = {strategy['id']: [self.IndexEngine(self.schema.metric, self.schema.dim, self.schema.index_factory,
+        self.partitions = {strategy['id']: [self.IndexEngine(self.schema.metric, self.schema.dim, index_factory=self.schema.index_factory,
                                             **self.engine_params) for _ in self.schema.partitions] for strategy in self.schema.strategies}
         model_dir.mkdir(parents=True, exist_ok=True)
         with (model_dir/"index_labels.json").open('r') as f:
