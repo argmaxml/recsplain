@@ -131,10 +131,11 @@ class BaseStrategy:
         try:
             vec = vec.reshape(1, -1).astype('float32')  # for faiss
             distances, num_ids = self.partitions[strategy_id][partition_num].search(vec, k=k)
-            indices = np.where(num_ids != -1)
-            if type(indices)==tuple:
-                indices=indices[0]
-            distances, num_ids = [distances[i] for i in indices], [num_ids[i] for i in indices]
+            if hasattr(distances[0],"__iter__"):
+                distances=distances[0]
+                num_ids=num_ids[0]
+            distances = [d for d,i in zip(distances,num_ids) if i>=0]
+            num_ids = [i for i in num_ids if i>=0]
         except Exception as e:
             raise Exception("Error in querying: " + str(e))
         if len(num_ids) == 0:
