@@ -132,7 +132,9 @@ class BaseStrategy:
             vec = vec.reshape(1, -1).astype('float32')  # for faiss
             distances, num_ids = self.partitions[strategy_id][partition_num].search(vec, k=k)
             indices = np.where(num_ids != -1)
-            distances, num_ids = distances[indices], num_ids[indices]
+            if type(indices)==tuple:
+                indices=indices[0]
+            distances, num_ids = [distances[i] for i in indices], [num_ids[i] for i in indices]
         except Exception as e:
             raise Exception("Error in querying: " + str(e))
         if len(num_ids) == 0:
