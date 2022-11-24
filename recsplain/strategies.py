@@ -426,7 +426,7 @@ class RedisStrategy(BaseStrategy):
         else:
             n = user_coldstart_weight
             if type(user_coldstart_item) == str:
-                item = self.get_vector(user_coldstart_item)
+                vec = self.get_vector(user_coldstart_item)
             elif type(user_coldstart_item) == dict:
                 item = user_coldstart_item
                 vec = self.schema.encode(item, strategy_id)
