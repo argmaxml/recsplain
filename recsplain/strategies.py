@@ -347,7 +347,7 @@ class AvgUserStrategy(BaseStrategy):
 
 
 class RedisStrategy(BaseStrategy):
-    def __init__(self, model_dir=None, similarity_engine=None, engine_params={}, redis_credentials=None, user_prefix="user:", value_sep="|", user_keys=[],event_key="event",item_key="item",event_weights={}):
+    def __init__(self, model_dir=None, similarity_engine=None, engine_params={}, redis_credentials=None, user_prefix="user:",vector_prefix="vec:", value_sep="|", user_keys=[],event_key="event",item_key="item",event_weights={}):
         super().__init__(model_dir, similarity_engine, dict(engine_params,redis_credentials=redis_credentials))
         assert Redis is not None, "RedisStrategy requires redis-py to be installed"
         assert redis_credentials is not None, "RedisStrategy requires redis credentials"
@@ -356,7 +356,8 @@ class RedisStrategy(BaseStrategy):
         assert item_key in user_keys, "item_key not in user_keys"
         self.redis = Redis(**redis_credentials)
         self.sep = value_sep
-        self. user_prefix = user_prefix
+        self.user_prefix = user_prefix
+        self.vector_prefix = vector_prefix
         self.event_key=event_key
         self.user_keys=user_keys
         self.item_key=item_key
@@ -369,6 +370,14 @@ class RedisStrategy(BaseStrategy):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.pipe.execute()
         self.pipe = None
+    def set_vector(self, key, arr):
+        """Sets a numpy array as a vector in redis"""
+        emb = np.array(arr).astype(np.float32).tobytes()
+        self.redis.set(self.vector_prefix+str(key), emb)
+        return self
+    def get_vector(self, key):
+        """Gets a numpy array from redis"""
+        return np.frombuffer(self.redis.get(self.vector_prefix+str(key)), dtype=np.float32)
     def del_user(self, user_id):
         if self.pipe:
             self.pipe.delete(self.user_prefix+str(user_id))
@@ -416,11 +425,11 @@ class RedisStrategy(BaseStrategy):
             vec = np.zeros(self.schema.dim)
         else:
             n = user_coldstart_weight
-            if hasattr(user_coldstart_item, "__call__"):
-                item = user_coldstart_item(user_data)
+            if type(user_coldstart_item) == str:
+                item = self.get_vector(user_coldstart_item)
             elif type(user_coldstart_item) == dict:
                 item = user_coldstart_item
-            vec = self.schema.encode(item, strategy_id)
+                vec = self.schema.encode(item, strategy_id)
         user_partition_num = self.user_partition_num(user_data)
         col_mapping = self.schema.component_breakdown()
         labels, distances = [], []
