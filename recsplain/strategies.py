@@ -421,9 +421,8 @@ class RedisStrategy(BaseStrategy):
         if not strategy_id:
             strategy_id = self.schema.base_strategy_id()
         vec = np.zeros(self.schema.dim)
-        if user_coldstart_item is None:
-            n = 0
-        else:
+        n = 0
+        if user_coldstart_item is not None:
             n = user_coldstart_weight
             if type(user_coldstart_item) == str:
                 vec = self.get_vector(user_coldstart_item)
