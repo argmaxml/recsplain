@@ -420,9 +420,9 @@ class RedisStrategy(BaseStrategy):
     def user_query(self, user_data, k, strategy_id=None, user_coldstart_item=None, user_coldstart_weight=1,user_id=None):
         if not strategy_id:
             strategy_id = self.schema.base_strategy_id()
+        vec = np.zeros(self.schema.dim)
         if user_coldstart_item is None:
             n = 0
-            vec = np.zeros(self.schema.dim)
         else:
             n = user_coldstart_weight
             if type(user_coldstart_item) == str:
