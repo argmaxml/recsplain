@@ -38,7 +38,7 @@ class BaseStrategy:
     def init_schema(self, **kwargs):
         self.schema = PartitionSchema(**kwargs)
         self.partitions[self.schema.base_strategy_id()] = [self.IndexEngine(self.schema.metric, self.schema.dim,
-                                                                            self.schema.index_factory,
+                                                                            index_factory=self.schema.index_factory,
                                                                             **self.engine_params)
                                                            for _ in self.schema.partitions]
         enc_sizes = {k: len(v) for k, v in self.schema.encoders[self.schema.base_strategy_id()].items()}
@@ -47,7 +47,7 @@ class BaseStrategy:
     def add_variant(self, variant):
         variant = self.schema.add_variant(variant)
         self.partitions[variant['id']] = [self.IndexEngine(self.schema.metric, self.schema.dim,
-                                                           self.schema.index_factory, **self.engine_params)
+                                                           index_factory=self.schema.index_factory, **self.engine_params)
                                           for _ in self.schema.partitions]
         # enc_sizes = {k: len(v) for k, v in self.schema.encoders[self.schema.base_strategy_id()].items()}
         return variant#, enc_sizes
@@ -131,8 +131,11 @@ class BaseStrategy:
         try:
             vec = vec.reshape(1, -1).astype('float32')  # for faiss
             distances, num_ids = self.partitions[strategy_id][partition_num].search(vec, k=k)
-            indices = np.where(num_ids != -1)
-            distances, num_ids = distances[indices], num_ids[indices]
+            if hasattr(distances[0],"__iter__"):
+                distances=distances[0]
+                num_ids=num_ids[0]
+            distances = [d for d,i in zip(distances,num_ids) if i>=0]
+            num_ids = [i for i in num_ids if i>=0]
         except Exception as e:
             raise Exception("Error in querying: " + str(e))
         if len(num_ids) == 0:
@@ -228,7 +231,7 @@ class BaseStrategy:
         with (model_dir/"schema.json").open('r') as f:
             schema_dict=json.load(f)
         self.schema = PartitionSchema(**schema_dict)
-        self.partitions = {strategy['id']: [self.IndexEngine(self.schema.metric, self.schema.dim, self.schema.index_factory,
+        self.partitions = {strategy['id']: [self.IndexEngine(self.schema.metric, self.schema.dim, index_factory=self.schema.index_factory,
                                             **self.engine_params) for _ in self.schema.partitions] for strategy in self.schema.strategies}
         model_dir.mkdir(parents=True, exist_ok=True)
         with (model_dir/"index_labels.json").open('r') as f:
@@ -344,8 +347,8 @@ class AvgUserStrategy(BaseStrategy):
 
 
 class RedisStrategy(BaseStrategy):
-    def __init__(self, model_dir=None, similarity_engine=None, engine_params={}, redis_credentials=None, user_prefix="user:", value_sep="|", user_keys=[],event_key="event",item_key="item",event_weights={}):
-        super().__init__(model_dir, similarity_engine, engine_params)
+    def __init__(self, model_dir=None, similarity_engine=None, engine_params={}, redis_credentials=None, user_prefix="user:",vector_prefix="vec:", value_sep="|", user_keys=[],event_key="event",item_key="item",event_weights={}):
+        super().__init__(model_dir, similarity_engine, dict(engine_params,redis_credentials=redis_credentials))
         assert Redis is not None, "RedisStrategy requires redis-py to be installed"
         assert redis_credentials is not None, "RedisStrategy requires redis credentials"
         assert len(user_keys)>0, "user_keys not supplied"
@@ -353,7 +356,8 @@ class RedisStrategy(BaseStrategy):
         assert item_key in user_keys, "item_key not in user_keys"
         self.redis = Redis(**redis_credentials)
         self.sep = value_sep
-        self. user_prefix = user_prefix
+        self.user_prefix = user_prefix
+        self.vector_prefix = vector_prefix
         self.event_key=event_key
         self.user_keys=user_keys
         self.item_key=item_key
@@ -366,6 +370,14 @@ class RedisStrategy(BaseStrategy):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.pipe.execute()
         self.pipe = None
+    def set_vector(self, key, arr):
+        """Sets a numpy array as a vector in redis"""
+        emb = np.array(arr).astype(np.float32).tobytes()
+        self.redis.set(self.vector_prefix+str(key), emb)
+        return self
+    def get_vector(self, key):
+        """Gets a numpy array from redis"""
+        return np.frombuffer(self.redis.get(self.vector_prefix+str(key)), dtype=np.float32)
     def del_user(self, user_id):
         if self.pipe:
             self.pipe.delete(self.user_prefix+str(user_id))
@@ -408,16 +420,15 @@ class RedisStrategy(BaseStrategy):
     def user_query(self, user_data, k, strategy_id=None, user_coldstart_item=None, user_coldstart_weight=1,user_id=None):
         if not strategy_id:
             strategy_id = self.schema.base_strategy_id()
-        if user_coldstart_item is None:
-            n = 0
-            vec = np.zeros(self.schema.dim)
-        else:
+        vec = np.zeros(self.schema.dim)
+        n = 0
+        if user_coldstart_item is not None:
             n = user_coldstart_weight
-            if hasattr(user_coldstart_item, "__call__"):
-                item = user_coldstart_item(user_data)
+            if type(user_coldstart_item) == str:
+                vec = self.get_vector(user_coldstart_item)
             elif type(user_coldstart_item) == dict:
                 item = user_coldstart_item
-            vec = self.schema.encode(item, strategy_id)
+                vec = self.schema.encode(item, strategy_id)
         user_partition_num = self.user_partition_num(user_data)
         col_mapping = self.schema.component_breakdown()
         labels, distances = [], []

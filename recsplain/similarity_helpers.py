@@ -1,4 +1,5 @@
 import sys
+from typing import Dict
 import numpy as np
 import collections
 from sklearn.neighbors import NearestNeighbors
@@ -9,11 +10,14 @@ try:
 except ModuleNotFoundError:
     print ("hnswlib not found")
     HNSWMock = collections.namedtuple("HNSWMock", ("Index", "max_elements"))
-    hnswlib = HNSWMock(None,0)
+    class MockHnsw:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+    hnswlib = HNSWMock(MockHnsw(),0)
 try:
     import faiss
     available_engines.add("faiss")
-except ModuleNotFoundError:
+except Exception:
     print ("faiss not found")
     faiss = None
 try:
@@ -45,7 +49,7 @@ def parse_server_name(sname):
 
 
 class FaissIndexFactory:
-    def __init__(self, space, dim, index_factory, **kwargs):
+    def __init__(self, space:str, dim:int, index_factory:str, **kwargs):
         if index_factory == '':
             index_factory = 'Flat'
         if space in ['ip', 'cosine']:
@@ -90,7 +94,7 @@ class FaissIndexFactory:
         self.index = faiss.read_index(fname)
 
 class LazyHnsw(hnswlib.Index):
-    def __init__(self, space, dim, index_factory=None,max_elements=1024, ef_construction=200, M=16):
+    def __init__(self, space:str, dim:int, max_elements=1024, ef_construction=200, M=16,**kwargs):
         super().__init__(space, dim)
         self.init_max_elements = max_elements
         self.init_ef_construction = ef_construction
@@ -151,7 +155,7 @@ class LazyHnsw(hnswlib.Index):
 
 
 class SciKitNearestNeighbors:
-    def __init__(self, space, dim, index_factory=None, **kwargs):
+    def __init__(self, space:str, dim:int, **kwargs):
         if space=="ip":
             self.space = "cosine"
             sys.stderr.write("Warning: ip is not supported by sklearn, falling back to cosine")
@@ -161,7 +165,7 @@ class SciKitNearestNeighbors:
         self.items = []
         self.ids = []
         self.fitted = False
-        self.index = NearestNeighbors(metric=self.space,n_jobs=-1,n_neighbors=10, **kwargs)
+        self.index = NearestNeighbors(metric=self.space,n_jobs=-1,n_neighbors=10)
 
     def __len__(self):
         return len(self.items)
@@ -175,6 +179,8 @@ class SciKitNearestNeighbors:
         
     def add_items(self, data, ids=None, num_threads=-1):
         self.items.extend(data)
+        if ids is None:
+            ids = list(range(len(self.items),len(self.items)+len(data)))
         self.ids.extend(ids)
         self.fitted = False
 
@@ -186,7 +192,8 @@ class SciKitNearestNeighbors:
             self.index.fit(self.items)
             self.fitted = True
         scores, idx = self.index.kneighbors(data ,k, return_distance=True)
-        return (scores, idx)
+        names = [[self.ids[i] for i in ids] for ids in idx]
+        return scores, names
 
     def get_max_elements(self):
         return -1
@@ -196,17 +203,31 @@ class SciKitNearestNeighbors:
 
 
 class RedisIndex:
-    def __init__(self, space, dim, index_factory=None,redis_credentials=None,max_elements=1024, ef_construction=200, M=16):
+    def __init__(self, space:str, dim:int, redis_credentials=None,max_elements=1024, ef_construction=200, M=16, overwrite=True,**kwargs):
         self.space = space
         self.dim = dim
         self.max_elements = max_elements
         self.ef_construction = ef_construction
         self.M = M
+        if kwargs.get("index_name") is None:
+            self.index_name = "idx"
+        else:
+            self.index_name = kwargs.get("index_name")
         if redis_credentials is None:
             raise Exception("Redis credentials must be provided")
         self.redis = Redis(**redis_credentials)
         self.pipe = None
+        if overwrite:
+            try:
+                self.redis.ft(self.index_name).info()
+                index_exists = True
+            except:
+                index_exists = False
+            if index_exists:
+                self.redis.ft(self.index_name).dropindex(delete_documents=True)
         self.init_hnsw()
+        # applicable only for user events
+        self.user_keys=[]
     
     def __enter__(self):
         self.pipe = self.redis.pipeline()
@@ -221,24 +242,37 @@ class RedisIndex:
     def  __itemgetter__(self, item):
         return super().get_items([item])[0]
 
-    def search(self, data, k=1,partition=None):
-        query_vector = np.array(data).astype(np.float32).tobytes()
+    def user_keys(self):
+        """Get all user keys"""
+        return [s.decode()[5:] for s in self.redis.keys("user:*")]
 
+    def item_keys(self):
+        """Get all item keys"""
+        return [s.decode()[5:] for s in self.redis.keys("item:*")]
+
+    def vector_keys(self):
+        """Get all vector keys"""
+        return [s.decode()[4:] for s in self.redis.keys("vec:*")]
+
+    def search(self, data, k=1,partition=None):
+        """Search the nearest neighbors of the given vectors, and a given partition."""
+        query_vector = np.array(data).astype(np.float32).tobytes()
         #prepare the query
         p = "(@partition:{"+partition+"})" if partition is not None else "*"
-        q = Query(f'{p}=>[KNN {k} embedding $vec_param AS vector_score]').sort_by('vector_score').paging(0,k).return_fields('vector_score','item_id').dialect(2)
+        q = Query(f'{p}=>[KNN {k} @embedding $vec_param AS vector_score]').sort_by('vector_score').paging(0,k).return_fields('vector_score','item_id').dialect(2)
         params_dict = {"vec_param": query_vector}
-        results = self.redis.ft().search(q, query_params = params_dict)
+        results = self.redis.ft(self.index_name).search(q, query_params = params_dict)
         scores, ids = [], []
         for item in results.docs:
             scores.append(item.vector_score)
             ids.append(item.item_id)
-        return (scores, ids)
+        return scores, ids
 
     def add_items(self, data, ids=None, partition=None):
+        """Add items and ids to the index, if a partition is not defined it defaults to NONE"""
         self.pipe = self.redis.pipeline(transaction=False)
         if partition is None:
-            partition=""
+            partition="NONE"
         for datum, id in zip(data, ids):
             key='item:'+ str(id)
             emb = np.array(datum).astype(np.float32).tobytes()
@@ -248,20 +282,91 @@ class RedisIndex:
         self.pipe = None
 
     def get_items(self, ids=None):
+        """Get items by id"""
         ret = []
         for id in ids:
-            ret.append(self.redis.hget("item:"+str(id), "embedding"))
-        return ret
+            ret.append(np.frombuffer(self.redis.hget("item:"+str(id), "embedding"), dtype=np.float32))
+        return np.vstack(ret)
+
+    def add_user_event(self, user_id: str, data: Dict[str, str],ttl: int = 60*60*24):
+        """
+        Adds a user event to the index. The event is stored in a hash with the key user:{user_id} and the fields
+        fields are defined by the `user_keys` property
+        """
+        if not any(self.user_keys):
+            raise Exception("User keys must be set before adding user events")
+        vals = []
+        for key in self.user_keys:
+            v = data.get(key,"")
+            # ad hoc int trimming
+            try:
+                if v==int(v):
+                    v=int(v)
+            except:
+                pass
+            vals.append(v)
+        val = '|'.join(map(str, vals))
+        if self.pipe:
+            self.pipe.rpush("user:"+str(user_id), val)
+            if ttl:
+                self.pipe.expire("user:"+str(user_id), ttl)
+        else:
+            self.redis.rpush("user:"+str(user_id), val)
+            if ttl:
+                self.redis.expire("user:"+str(user_id), ttl)
+        return self
+    def del_user(self, user_id):
+        """Delete a user key from Redis"""
+        if self.pipe:
+            self.pipe.delete("user:"+str(user_id))
+        else:
+            self.redis.delete("user:"+str(user_id))
+    
+    def get_user_events(self, user_id: str):
+        """Gets a list of user events by key"""
+        if not any(self.user_keys):
+            raise Exception("User keys must be set before getting user events")
+        ret = self.redis.lrange("user:"+str(user_id), 0, -1)
+        return [dict(zip(self.user_keys,x.decode().split('|'))) for x in ret]
+    
+    def set_vector(self, key, arr, prefix="vec:"):
+        """Sets a numpy array as a vector in redis"""
+        emb = np.array(arr).astype(np.float32).tobytes()
+        self.redis.set(prefix+str(key), emb)
+        return self
+    
+    def get_vector(self, key, prefix="vec:"):
+        """Gets a numpy array from redis"""
+        return np.frombuffer(self.redis.get(prefix+str(key)), dtype=np.float32)
+
 
     def init_hnsw(self, **kwargs):
-        self.redis.ft().create_index([
+        self.redis.ft(self.index_name).create_index([
         VectorField("embedding", "HNSW", {"TYPE": "FLOAT32", "DIM": self.dim, "DISTANCE_METRIC": self.space, "INITIAL_CAP": self.max_elements, "M": self.M, "EF_CONSTRUCTION": self.ef_construction}),
         TextField("item_id"),
         TagField("partition")
         ])  
 
     def get_current_count(self):
-        raise NotImplementedError("RedisIndex is not implemented yet")
+        """Get number of items in index"""
+        return int(self.redis.ft(self.index_name).info()["num_docs"])
 
     def get_max_elements(self):
+        """Get max elements in index"""
         return self.max_elements
+    
+    def info(self):
+        """Get Redis info as dict"""
+        return self.redis.ft(self.index_name).info()
+
+if __name__=="__main__":
+    # docker run -p 6379:6379 redislabs/redisearch:2.4.5
+    sim = RedisIndex(space='cosine',dim=32,redis_credentials={"host":"127.0.0.1", "port": 6379}, overwrite=True)
+    data=np.random.random((100,32))
+    aids=["a"+str(1+i) for i in range(100)]
+    bids=["b"+str(101+i) for i in range(100)]
+    sim.add_items(data,aids,partition="a")
+    sim.add_items(data,bids,partition="b")
+    # print(sim.search(data[0],k=10,partition=None))
+    # print(sim.get_items(aids[:10]))
+    print (sim.item_keys())
